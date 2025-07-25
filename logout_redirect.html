@@ -1,0 +1,22 @@
+<!-- logout_redirect.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Logging Out...</title>
+  <script>
+    // Automatically redirect to Spotify logout, then close tab after 2 seconds
+    setTimeout(() => {
+      window.location.href = "https://accounts.spotify.com/logout";
+    }, 100);
+
+    // Try closing the window after 2.5s
+    setTimeout(() => {
+      window.open('', '_self', '');
+      window.close();
+    }, 2500);
+  </script>
+</head>
+<body>
+  <h3>Logging you out of Spotify...</h3>
+</body>
+</html>

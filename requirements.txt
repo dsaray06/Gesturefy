@@ -1,0 +1,10 @@
+# requirements.txt
+mediapipe
+opencv-python
+pycaw; platform_system=="Windows"
+comtypes; platform_system=="Windows"
+customtkinter
+spotipy
+Pillow
+requests
+python-dotenv
