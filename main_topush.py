@@ -421,11 +421,11 @@ class GesturefyApp:
 
         # Remake topbar - prevents duplication
         settings_image_url = "assets/settings_gear_transparent.png"
-        circular_settings_image = get_circular_image(settings_image_url, size=(37, 37))
+        self.circular_settings_image = get_circular_image(settings_image_url, size=(37, 37))
 
         self.settings_button = ctk.CTkButton(
             self.topbar,
-            image=circular_settings_image,
+            image=self.circular_settings_image,
             command=self.open_settings,
             text="",
             width=32,
