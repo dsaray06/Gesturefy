@@ -265,7 +265,6 @@ class GesturefyApp:
             login = False
             
     # All main screen elements
-    
         # Sidebar
         self.sidebar = ctk.CTkFrame(self.main_screen, width=300, corner_radius=18, fg_color="#191414")
         self.sidebar.pack(side="left", fill="y")
@@ -273,14 +272,14 @@ class GesturefyApp:
 
         # Title and subtitle
         self.title_label = ctk.CTkLabel(self.sidebar, text="GESTUREFY", font=ctk.CTkFont(family="Montserrat", size=44, weight="bold"), text_color="white", anchor="center")
-        self.title_label.pack(pady=(280, 10))
+        self.title_label.place(anchor="center", relx=0.5, rely=0.4)
 
         self.subtitle = ctk.CTkLabel(self.sidebar, text="Control Spotify\nwith gestures!", font=ctk.CTkFont(family="Montserrat", size=22, weight="bold"), justify="center", text_color="#A0A0A0")
-        self.subtitle.pack(pady=5)
+        self.subtitle.place(anchor="center", relx=0.5, rely=0.5)
 
         # Start/Stop button
         self.start_stop_btn = ctk.CTkButton(self.sidebar, width=200, height=50, corner_radius= 20, text="Start", command=self.toggle, fg_color="#343333", hover_color="#545454", text_color="white", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), border_color="#1F1F1F", border_width=4)
-        self.start_stop_btn.pack(pady=(40, 10))
+        self.start_stop_btn.place(anchor="center", relx=0.5, rely=0.6)
 
         # Top bar for profile and settings
         self.topbar = ctk.CTkFrame(self.main_screen, height=40, corner_radius=15, fg_color="#191414")
@@ -298,7 +297,7 @@ class GesturefyApp:
 
         # Now Playing Frame
         self.now_playing_frame = ctk.CTkFrame(self.center_frame, fg_color="transparent")
-        self.now_playing_frame.pack(fill="x", padx=40, pady=(40, 10))
+        self.now_playing_frame.place(relx=0.02, rely=0.05, anchor="nw")
 
         # Album Art (left)
         self.album_art_label = ctk.CTkLabel(self.now_playing_frame, text="", image=None, width=100, height=100)
@@ -323,7 +322,7 @@ class GesturefyApp:
             font=ctk.CTkFont(family="Montserrat", size=40, weight="bold"),
             text_color="white"
         )
-        self.song_title_label.pack(anchor="w", pady=(75, 5))
+        self.song_title_label.pack(anchor="w", pady=(90, 5))
 
         self.artist_label = ctk.CTkLabel(
             self.song_info_frame,
@@ -336,7 +335,7 @@ class GesturefyApp:
         # --- Progress Bar + Time ---
         self.progress_bar = ctk.CTkProgressBar(self.center_frame, width=600, progress_color="#1DB954")
         self.progress_bar.set(0)
-        self.progress_bar.pack(padx=(0, 545), pady=(50, 5))
+        self.progress_bar.place(relx=0.015, rely=0.62, anchor="nw")
 
         self.track_time_label = ctk.CTkLabel(
             self.center_frame,
@@ -344,11 +343,11 @@ class GesturefyApp:
             font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"),
             text_color="white"
         )
-        self.track_time_label.pack(padx=(0, 10))
+        self.track_time_label.place(relx=0.455, rely=0.65, anchor="nw")
 
         # --- "Next Up" Song Info ---
         self.next_up_container = ctk.CTkFrame(self.center_frame, fg_color="transparent")
-        self.next_up_container.pack(anchor="e", padx=(0, 20), pady=(40, 20))
+        self.next_up_container.pack(anchor="e", side="bottom", padx=(0, 20), pady=(0, 20))
 
         self.next_album_art_label = ctk.CTkLabel(self.next_up_container, text="", image=None, width=75, height=75)
         self.next_album_art_label.pack(side="left", padx=(0, 10))
@@ -380,6 +379,7 @@ class GesturefyApp:
         )
         self.next_artist_label.pack(anchor="w")
 
+        
         # Logs in if initially displaying main_screen
         if not login:
             self.spotify_login()
