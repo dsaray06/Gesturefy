@@ -35,10 +35,12 @@ class GestureControl(threading.Thread):
         self.sp = sp
         self._running = True
         self.log = log_callback or print
+        self.cooldown = 1.5  # seconds between reset
+        self.last_action_time = 0
         # MediaPipe init
         self.mp_hands = mp.solutions.hands
         self.mp_drawing = mp.solutions.drawing_utils
-        self.hands = self.mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7)
+        self.hands = self.mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.9)
         self.recognizer = GestureRecognizer()
         self.gesture_counter = {
         "closed_fist": 0,
@@ -49,7 +51,7 @@ class GestureControl(threading.Thread):
         "pointing_left": 0,
         "pointing_right": 0
      }
-        self.GESTURE_HOLD_FRAMES = 5
+        self.GESTURE_HOLD_FRAMES = 8
         self.last_triggered = None
 
     def stop(self):
@@ -76,18 +78,19 @@ class GestureControl(threading.Thread):
                     self.mp_drawing.draw_landmarks(frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
 
                     gesture = self.recognizer.recognize(hand_landmarks)
-                    print("Detected:", gesture)
-                    print("Count:", self.gesture_counter[gesture])
-                    print("Last triggered:", self.last_triggered)       
 
                     if gesture and gesture in self.gesture_counter:
                         self.gesture_counter[gesture] += 1
-                        print("🧠 Gesture:", gesture, "| Count:", self.gesture_counter[gesture])
 
-                        if self.gesture_counter[gesture] >= self.GESTURE_HOLD_FRAMES and self.last_triggered != gesture:
+                        current_time = time.time()
+                        if (
+                            self.gesture_counter[gesture] >= self.GESTURE_HOLD_FRAMES
+                            and self.last_triggered != gesture
+                            and (current_time - self.last_action_time) >= self.cooldown
+                        ):
                             self.last_triggered = gesture
-                            self.gesture_counter = {key: 0 for key in self.gesture_counter}  # Reset after successful trigger
-                            print("🔥 Triggering action:", gesture)
+                            self.last_action_time = current_time
+                            self.gesture_counter = {key: 0 for key in self.gesture_counter}
                             self.handle_gesture_action(gesture)
                     else:
                         # Only reset counters if no valid gesture or different gesture
