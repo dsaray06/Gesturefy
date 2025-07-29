@@ -6,6 +6,26 @@ mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7)
 
+class GestureRecognizer:
+    def recognize(self, hand_landmarks):
+        if is_closed_fist(hand_landmarks):
+            return "closed_fist"
+        elif is_open_fist(hand_landmarks):
+            return "open_fist"
+        elif is_thumbs_up(hand_landmarks):
+            return "thumbs_up"
+        elif is_pointing_up(hand_landmarks):
+            return "pointing_up"
+        elif is_pointing_down(hand_landmarks):
+            return "pointing_down"
+        elif is_pointing_left(hand_landmarks):
+            return "pointing_left"
+        elif is_pointing_right(hand_landmarks):
+            return "pointing_right"
+        else:
+            return None
+
+
 def is_closed_fist(hand_landmarks):
     index_finger_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
     middle_finger_tip = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]

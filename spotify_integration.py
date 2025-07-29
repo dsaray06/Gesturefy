@@ -3,13 +3,9 @@ import cv2
 import mediapipe as mp
 import time
 import platform
-from hand_gesture_detection import (
-    is_closed_fist, is_open_fist, 
-    is_pointing_right, is_pointing_left,
-    is_pointing_up, is_pointing_down, 
-    is_thumbs_up
-)
+from hand_gesture_detection import GestureRecognizer
 import threading
+
 
 # Volume control (platform-specific)
 if platform.system() == "Windows":
@@ -43,21 +39,28 @@ class GestureControl(threading.Thread):
         self.mp_hands = mp.solutions.hands
         self.mp_drawing = mp.solutions.drawing_utils
         self.hands = self.mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7)
+        self.recognizer = GestureRecognizer()
+        self.gesture_counter = {
+        "closed_fist": 0,
+        "open_fist": 0,
+        "thumbs_up": 0,
+        "pointing_up": 0,
+        "pointing_down": 0,
+        "pointing_left": 0,
+        "pointing_right": 0
+     }
+        self.GESTURE_HOLD_FRAMES = 5
+        self.last_triggered = None
 
     def stop(self):
         self._running = False
-
+    
     def run(self):
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             print("Error: Could not open video capture.")
             return
-
-        gesture_detected = None
-        gesture_timeout = 2
-        gesture_delay = 3
-        gesture_printed = False
-
+        
         while self._running:
             ret, frame = cap.read()
             if not ret:
@@ -72,86 +75,65 @@ class GestureControl(threading.Thread):
                 for hand_landmarks in results.multi_hand_landmarks:
                     self.mp_drawing.draw_landmarks(frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
 
-                    if is_closed_fist(hand_landmarks) and not gesture_printed:
-                        playback_info = self.sp.current_playback()
-                        if playback_info and playback_info['is_playing']:
-                            pass
-                        else:
-                            devices = self.sp.devices().get("devices", [])
-                            if devices:
-                                active_device = next((d for d in devices if d.get("is_active")), None)
-                                if not active_device:
-                                    self.sp.transfer_playback(device_id=devices[0]["id"], force_play=False)
-                                    time.sleep(0.5)
+                    gesture = self.recognizer.recognize(hand_landmarks)
+                    print("Detected:", gesture)
+                    print("Count:", self.gesture_counter[gesture])
+                    print("Last triggered:", self.last_triggered)       
 
-                                try:
-                                    self.sp.start_playback()
-                                    gesture_detected = "Closed Fist - Playing Song"
-                                    gesture_timeout = time.time() + gesture_delay
-                                    self.log(gesture_detected)
-                                    gesture_printed = True
-                                except Exception as e:
-                                    self.log(f"Error starting playback: {e}")
-                            else:
-                                self.log("No available devices found for playback.")
+                    if gesture and gesture in self.gesture_counter:
+                        self.gesture_counter[gesture] += 1
+                        print("🧠 Gesture:", gesture, "| Count:", self.gesture_counter[gesture])
 
+                        if self.gesture_counter[gesture] >= self.GESTURE_HOLD_FRAMES and self.last_triggered != gesture:
+                            self.last_triggered = gesture
+                            self.gesture_counter = {key: 0 for key in self.gesture_counter}  # Reset after successful trigger
+                            print("🔥 Triggering action:", gesture)
+                            self.handle_gesture_action(gesture)
+                    else:
+                        # Only reset counters if no valid gesture or different gesture
+                        self.gesture_counter = {key: 0 for key in self.gesture_counter}
+                        self.last_triggered = None
 
-                    elif is_open_fist(hand_landmarks) and not gesture_printed:
-                        playback_info = self.sp.current_playback()
-                        if playback_info and not playback_info['is_playing']:
-                            pass
-                        else:
-                            try:
-                                self.sp.pause_playback()
-                                gesture_detected = "Open Fist - Pausing Song"
-                                gesture_timeout = time.time() + gesture_delay
-                                self.log(gesture_detected)
-                                gesture_printed = True
-                            except Exception as e:
-                                self.log(f"Error pausing playback: {e}")
-
-                    elif is_thumbs_up(hand_landmarks) and not gesture_printed:
-                        current_playback = self.sp.current_playback()
-                        if current_playback and current_playback['item']:
-                            track_id = current_playback['item']['id']
-                            self.sp.current_user_saved_tracks_add([track_id])
-                            gesture_detected = "Thumbs Up - Liked Song"
-                            gesture_timeout = time.time() + gesture_delay
-                            self.log(gesture_detected)
-                            gesture_printed = True
-                        else:
-                            self.log("No song is currently playing.")
-
-                    elif is_pointing_up(hand_landmarks) and not gesture_printed:
-                        gesture_detected = "Pointing Up - Increasing Volume"
-                        gesture_timeout = time.time() + gesture_delay
-                        self.log(gesture_detected)
-                        gesture_printed = True
-                        set_volume(10)
-
-                    elif is_pointing_down(hand_landmarks) and not gesture_printed:
-                        gesture_detected = "Pointing Down - Decreasing Volume"
-                        gesture_timeout = time.time() + gesture_delay
-                        self.log(gesture_detected)
-                        gesture_printed = True
-                        set_volume(-10)
-
-                    elif is_pointing_right(hand_landmarks) and not gesture_printed:
-                        gesture_detected = "Pointing Right - Skipping to Next Track"
-                        gesture_timeout = time.time() + gesture_delay
-                        self.log(gesture_detected)
-                        gesture_printed = True
-                        self.sp.next_track()
-
-                    elif is_pointing_left(hand_landmarks) and not gesture_printed:
-                        gesture_detected = "Pointing Left - Replaying Previous Track"
-                        gesture_timeout = time.time() + gesture_delay
-                        self.log(gesture_detected)
-                        gesture_printed = True
-                        self.sp.previous_track()
-
-            if gesture_detected and time.time() >= gesture_timeout:
-                gesture_detected = None
-                gesture_printed = False
 
         cap.release()
+
+    def handle_gesture_action(self, gesture):
+        try:
+            if gesture == "closed_fist":
+                playback_info = self.sp.current_playback()
+                if not playback_info or not playback_info['is_playing']:
+                    devices = self.sp.devices().get("devices", [])
+                    if devices:
+                        active_device = next((d for d in devices if d.get("is_active")), None)
+                        if not active_device:
+                            self.sp.transfer_playback(device_id=devices[0]["id"], force_play=False)
+                            time.sleep(0.5)
+                        self.sp.start_playback()
+                        self.log("Closed Fist - Playing Song")
+            elif gesture == "open_fist":
+                playback_info = self.sp.current_playback()
+                if playback_info and playback_info['is_playing']:
+                    self.sp.pause_playback()
+                    self.log("Open Fist - Pausing Song")
+            elif gesture == "thumbs_up":
+                current_playback = self.sp.current_playback()
+                if current_playback and current_playback['item']:
+                    track_id = current_playback['item']['id']
+                    self.sp.current_user_saved_tracks_add([track_id])
+                    self.log("Thumbs Up - Liked Song")
+            elif gesture == "pointing_up":
+                self.log("Pointing Up - Increasing Volume")
+                set_volume(10)
+            elif gesture == "pointing_down":
+                self.log("Pointing Down - Decreasing Volume")
+                set_volume(-10)
+            elif gesture == "pointing_right":
+                self.log("Pointing Right - Skipping to Next Track")
+                self.sp.next_track()
+            elif gesture == "pointing_left":
+                self.log("Pointing Left - Replaying Previous Track")
+                self.sp.previous_track()
+        except Exception as e:
+            self.log(f"Error performing action for {gesture}: {e}")
+
+    
