@@ -231,17 +231,18 @@ class GesturefyApp:
         # Login button
         self.login_button = ctk.CTkButton(
             self.login_container,
+            text="Log in",
             width=200,
             height=50,
-            text="Log in",
             corner_radius=20,
-            command=self.spotify_login,
             font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"),
             text_color="white",
             fg_color="#343333",
             hover_color="#545454",
             border_color="#1F1F1F",
-            border_width=4
+            border_width=4,
+            command=self.spotify_login
+            
         )
         self.login_button.pack(pady=(0, 10))
         # Trigger wave animation on hover
@@ -296,54 +297,54 @@ class GesturefyApp:
         self.center_frame.pack(side="top", pady=(10,5), padx=20, fill="both", expand=True)
 
         # Now Playing Frame
-        self.now_playing_frame = ctk.CTkFrame(self.center_frame, fg_color="transparent")
-        self.now_playing_frame.place(relx=0.02, rely=0.05, anchor="nw")
+        self.now_playing_frame = ctk.CTkFrame(self.center_frame, width = 1000, height = 1000, fg_color="transparent")
+        self.now_playing_frame.place(relx=0.00, rely=0.00, anchor="nw")
 
         # Album Art (left)
         self.album_art_label = ctk.CTkLabel(self.now_playing_frame, text="", image=None, width=100, height=100)
-        self.album_art_label.pack(side="left", padx=(0, 20))
+        self.album_art_label.place(relx=0.02, rely=0.02, anchor="nw")
         
         # "Currently Playing" label (right)
         self.now_playing_label = ctk.CTkLabel(
             self.now_playing_frame,
             text="Currently Playing",
             font=ctk.CTkFont(family="Montserrat", size=32, weight="bold"),
-            text_color="#1DB954"
+            text_color="#1DB954", 
         )
-        self.now_playing_label.pack(anchor="w")
-
-        # Song Title + Artist (right)
-        self.song_info_frame = ctk.CTkFrame(self.now_playing_frame, fg_color="transparent")
-        self.song_info_frame.pack(side="left", anchor="n")
+        self.now_playing_label.place(relx=0.285, rely=0.025, anchor="nw")
 
         self.song_title_label = ctk.CTkLabel(
-            self.song_info_frame,
+            self.now_playing_frame,
             text="Song Title",
             font=ctk.CTkFont(family="Montserrat", size=40, weight="bold"),
             text_color="white"
         )
-        self.song_title_label.pack(anchor="w", pady=(90, 5))
+        self.song_title_label.place(relx=0.285, rely=0.22, anchor="sw")
 
         self.artist_label = ctk.CTkLabel(
-            self.song_info_frame,
+            self.now_playing_frame,
             text="Artist Name",
             font=ctk.CTkFont(family="Montserrat", size=28),
             text_color="#B3B3B3"
         )
-        self.artist_label.pack(anchor="w")
+        self.artist_label.place(relx=0.285, rely=0.26, anchor="sw")
 
-        # --- Progress Bar + Time ---
-        self.progress_bar = ctk.CTkProgressBar(self.center_frame, width=600, progress_color="#1DB954")
+        # Frame for progress bar + timestamp
+        self.progress_frame = ctk.CTkFrame(self.now_playing_frame, width=601, height=50,fg_color = "transparent")
+        self.progress_frame.place(relx=0.015, rely=0.33, anchor = "nw")
+        
+        self.progress_bar = ctk.CTkProgressBar(self.progress_frame, width=600, progress_color="#1DB954")
         self.progress_bar.set(0)
-        self.progress_bar.place(relx=0.015, rely=0.62, anchor="nw")
+        self.progress_bar.place(anchor="nw")
 
         self.track_time_label = ctk.CTkLabel(
-            self.center_frame,
+            self.progress_frame,
             text="0:00 / 0:00",
             font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"),
             text_color="white"
         )
-        self.track_time_label.place(relx=0.455, rely=0.65, anchor="nw")
+        
+        self.track_time_label.place(relx = 0.99, rely=0.17,anchor="ne")
 
         # --- "Next Up" Song Info ---
         self.next_up_container = ctk.CTkFrame(self.center_frame, fg_color="transparent")
