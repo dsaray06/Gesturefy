@@ -459,42 +459,60 @@ class GesturefyApp:
         # Main setting screen
         self.settings_screen = ctk.CTkFrame(self.root, fg_color="#212121")
         self.settings_screen.pack(fill="both", expand=True)
-        self.settings_label = ctk.CTkLabel(self.settings_screen, text="Settings", font=ctk.CTkFont(family="Montserrat", size=32, weight="bold"), text_color="#1DB954")
+        self.settings_label = ctk.CTkLabel(self.settings_screen, text="Settings", font=ctk.CTkFont(family="Montserrat", size=44, weight="bold"), text_color="white")
         self.settings_label.pack(pady=(20, 10))
         
+        #Center frame for settings content
+        self.settings_content_frame = ctk.CTkFrame(self.settings_screen, fg_color="transparent", width=600, height=400)
+        self.settings_content_frame.place(relx=0.5, rely=0.5, anchor="center")
         # Back button
         self.back_button = ctk.CTkButton(
-            self.settings_screen,
+            self.settings_content_frame,
             text="Back",
             command=self.back_to_main,
-            fg_color="#1DB954",
-            hover_color="#1ed760",
-            text_color="black",
-            font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")
+            width=200,
+            height=50,
+            corner_radius=20,
+            font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"),
+            text_color="white",
+            fg_color="#343333",
+            hover_color="#545454",
+            border_color="#1F1F1F",
+            border_width=4
         )
         self.back_button.pack(pady=(10, 20))
         
         # Switch user button
         self.switch_user_button = ctk.CTkButton(
-            self.settings_screen,
+            self.settings_content_frame,
             text="Switch User",
             command=self.switch_user,
-            fg_color="#1DB954",
-            hover_color="#1ed760",
-            text_color="black",
-            font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")
+            width=200,
+            height=50,
+            corner_radius=20,
+            font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"),
+            text_color="white",
+            fg_color="#343333",
+            hover_color="#545454",
+            border_color="#1F1F1F",
+            border_width=4
         )
         self.switch_user_button.pack(pady=(10, 20))
 
         # Logout button
         self.logout_button = ctk.CTkButton(
-            self.settings_screen,
+            self.settings_content_frame,
             text="Logout",
             command=self.logout,
-            fg_color="#ff4d4d",
-            hover_color="#ff6666",
-            text_color="black",
-            font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")
+            width=200,
+            height=50,
+            corner_radius=20,
+            font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"),
+            text_color="white",
+            fg_color="#FF0000",
+            hover_color="#C20A0A",
+            border_color="#1F1F1F",
+            border_width=4
         )
         self.logout_button.pack(pady=(10, 20))
 
