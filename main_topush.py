@@ -649,7 +649,7 @@ class GesturefyApp:
 
                     else:
                         self.song_title_label.configure(text="Not Playing")
-                        self.artist_label.configure(text="Ensure Spotify is open, and start playing a song to see track info")
+                        self.artist_label.configure(text="Play track in Spotify (make sure it's open)")
                         self.progress_bar.set(0)
                         self.track_time_label.configure(text="0:00 / 0:00")
 
