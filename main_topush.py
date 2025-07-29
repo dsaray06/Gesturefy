@@ -15,10 +15,12 @@ from io import BytesIO
 import requests
 import time
 from dotenv import load_dotenv
+from hand_gesture_detection import GestureRecognizer
 
 # Constants
 TOKEN_PATH = 'tokens.json'
 PORT = 8888
+
 
 load_dotenv()  # This loads the .env file 
 
@@ -131,11 +133,15 @@ def get_circular_image(image_source, size=(32, 32), upscale=4):
     return ctk.CTkImage(light_image=img, size=size)
 
 # Main application class
-class GesturefyApp:
+class GesturefyApp(ctk.CTk):
     def __init__(self, root):
+        super().__init__()
+        
         self.root = root
         self.root.title("Gesturefy")
         self.root.withdraw()
+        self.recognizer = GestureRecognizer()
+
 
         montserrat_path = Path("fonts/Montserrat-Regular.ttf")
         if not montserrat_path.exists():
@@ -380,10 +386,29 @@ class GesturefyApp:
         )
         self.next_artist_label.pack(anchor="w")
 
+        #Slider
+        self.depth_slider = ctk.CTkSlider(
+            self.main_screen,
+            from_=1,
+            to=70,
+            number_of_steps=70,  # (0.1 - (-0.1)) / 0.01 = 20 steps
+            width=300,
+            command=self.update_depth_threshold
+        )
+        self.depth_slider.set(30)
+        self.depth_slider.pack(pady=10)
+
+        self.depth_label = ctk.CTkLabel(self.main_screen, text="Depth Threshold: 0.00")
+        self.depth_label.pack()
+
         
         # Logs in if initially displaying main_screen
         if not login:
             self.spotify_login()
+    #slider for depth changing
+    def update_depth_threshold(self, val):
+            self.depth_threshold = float(val)
+            self.depth_label.configure(text=f"Depth Threshold: {float(val):.2f}")
 
     def log(self, msg: str):
         print(msg)
@@ -569,7 +594,12 @@ class GesturefyApp:
             self.start_stop_btn.configure(state="normal")
             return
 
-        self.gesture_thread = GestureControl(self.sp, log_callback=self.log)
+        self.gesture_thread = GestureControl(
+            sp=self.sp,
+            log_callback=self.log,
+            depth_threshold=self.depth_slider.get() 
+        )
+
         self.gesture_thread.start()
         self.running = True
         self.log("Gesture control started. Press stop to end.")
