@@ -75,6 +75,13 @@ class GestureControl(threading.Thread):
 
             if results.multi_hand_landmarks:
                 for hand_landmarks in results.multi_hand_landmarks:
+                   #Check how close the wrist or palm is
+                    wrist_z = hand_landmarks.landmark[self.mp_hands.HandLandmark.WRIST].z
+
+                    # Only process gestures if hand is close enough (z is more negative)
+                    if wrist_z > 0:  #( -.1 to 0.1)
+                       # print("🚫 Hand too far, ignoring")
+                        continue  # Skip this hand and move to the next
                     self.mp_drawing.draw_landmarks(frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
 
                     gesture = self.recognizer.recognize(hand_landmarks)
