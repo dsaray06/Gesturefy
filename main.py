@@ -15,6 +15,7 @@ import requests
 import time
 import sys
 import uuid
+import subprocess
 
 TOKEN_PATH = 'tokens.json'
 BACKEND_URL = "https://gesturefy-auth-backend-1f562dbd4c73.herokuapp.com"
@@ -85,7 +86,21 @@ def authenticate_spotify(status_callback=None):
 
         if status_callback:
             status_callback("Opening browser for Spotify login...")
-        webbrowser.open(auth_url)
+        
+        def open_browser(url):
+            print("Trying to open browser at:", url)
+            try:
+                if sys.platform.startswith("darwin"):
+                    subprocess.run(["open", url], check=True)
+                else:
+                    success = webbrowser.open(url)
+                    if not success:
+                        raise Exception("webbrowser.open() failed")
+            except Exception as e:
+                print("Failed to open browser:", e)
+        
+        open_browser(auth_url)
+        #webbrowser.open(auth_url)
 
         # Poll your backend for tokens
         token_info = None
@@ -444,8 +459,8 @@ class GesturefyApp:
             self.spotify_login()
 
     def update_depth_threshold(self, val):
-                self.depth_threshold = float(val)
-                self.depth_label.configure(text=f"Depth Threshold: {float(val):.2f}")
+        self.depth_threshold = float(val)
+        self.depth_label.configure(text=f"Depth Threshold: {float(val):.2f}")
 
     def log(self, msg: str):
         print(msg)
