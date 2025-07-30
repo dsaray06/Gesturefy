@@ -176,7 +176,8 @@ class GesturefyApp:
         self.root.title("Gesturefy")
         self.root.withdraw()
         self.recognizer = GestureRecognizer()
-        
+        self.keep_refreshing_token = False
+
         font_path = resource_path("fonts/Montserrat-Regular.ttf")
         montserrat_path = Path(font_path)
         if not montserrat_path.exists():
@@ -476,6 +477,15 @@ class GesturefyApp:
             self.start_stop_btn.configure(state="disabled")
             threading.Thread(target=self.start_gesture_control).start()
 
+    def start_checking_for_expiry(self):
+        def check_expiry():
+            while True:
+                time.sleep(5) # Check every 5 seconds
+                self.sp = get_spotify_client(status_callback=self.log) #Auto refreshes if expired, if not expired then no change
+                #print("Called sp client")
+                self.user = self.sp.current_user()
+        threading.Thread(target=check_expiry, daemon=True).start()
+        
     def _perform_login(self):
         self.sp = get_spotify_client(status_callback=self.log)
         self.loading_screen.after(50, self._handle_login_result)
@@ -500,6 +510,9 @@ class GesturefyApp:
         self.log("Welcome to Gesturefy!")
         self.log("Press start to begin gesture control.")
         self.start_updating_track_info()
+        self.start_checking_for_expiry()
+        
+        
         if hasattr(self, "loading_screen"):
             self.loading_screen.pack_forget()
         if hasattr(self, "login_screen"):
@@ -647,6 +660,7 @@ class GesturefyApp:
         if self.sp:
             self.sp = None
             self.log("Logged out of Spotify.")
+            self.keep_refreshing_token = False
             self.start_stop_btn.configure(state="normal")
             if hasattr(self, 'gesture_thread'):
                 self.stop_gesture_control()
