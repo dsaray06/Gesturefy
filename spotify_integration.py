@@ -35,7 +35,7 @@ class GestureControl(threading.Thread):
         self.sp = sp
         self._running = True
         self.log = log_callback or print
-        self.cooldown = 1.5  # seconds between reset
+        self.cooldown = 1  # seconds between reset
         self.last_action_time = 0
         # MediaPipe init
         self.mp_hands = mp.solutions.hands
@@ -79,7 +79,7 @@ class GestureControl(threading.Thread):
                 for hand_landmarks in results.multi_hand_landmarks:
                    #Check how close the wrist or palm is
                     z_depth = abs(hand_landmarks.landmark[0].z) * 100000000
-                    print(z_depth)
+                    #print(z_depth)
                     if z_depth < self.depth_threshold:
                         print(f"⛔ Hand too far: {z_depth:.3f} > threshold {self.depth_threshold:.3f}")
                         continue  # Skip if hand is too far
@@ -94,7 +94,7 @@ class GestureControl(threading.Thread):
                         current_time = time.time()
                         if (
                             self.gesture_counter[gesture] >= self.GESTURE_HOLD_FRAMES
-                            and self.last_triggered != gesture
+                            #and self.last_triggered != gesture
                             and (current_time - self.last_action_time) >= self.cooldown
                         ):
                             self.last_triggered = gesture
