@@ -16,6 +16,8 @@ import time
 import sys
 import uuid
 import subprocess
+from colorthief import ColorThief
+from spotifyhelpers import get_current_album_art_url, get_dominant_color_from_url, rgb_to_hex, mild_tint_from_rgb
 
 TOKEN_PATH = 'tokens.json'
 BACKEND_URL = "https://gesturefy-auth-backend-1f562dbd4c73.herokuapp.com"
@@ -716,6 +718,7 @@ class GesturefyApp:
                         album_art_url = track["album"]["images"][0]["url"]
                         progress_ms = current["progress_ms"] or 0
                         duration_ms = track["duration_ms"]
+                        
 
                         last_track = {
                             "name": name,
@@ -739,6 +742,7 @@ class GesturefyApp:
                         self.album_art_img = ctk.CTkImage(light_image=image_pil, size=(246, 246))
                         self.album_art_label.configure(image=self.album_art_img)
                         self.album_art_label.image = self.album_art_img  # prevent garbage collection
+                        self.update_theme_based_on_album(album_art_url)
 
                         queue = self.sp.queue()
                         if queue and queue.get("queue"):
@@ -789,6 +793,22 @@ class GesturefyApp:
 
         thread = threading.Thread(target=update_loop, daemon=True)
         thread.start()
+
+    def update_theme_based_on_album(self, album_art_url):
+        if not self.sp or not album_art_url:
+            self.log("Spotify client not initialized or no album art URL.")
+            return
+        
+        dominant_rgb = get_dominant_color_from_url(album_art_url)
+        mild_rgb = mild_tint_from_rgb(dominant_rgb)
+        hex_color = rgb_to_hex(mild_rgb)
+        # TODO: Update your app UI colors with hex_color here
+        self.main_screen.configure(fg_color=hex_color)
+        self.sidebar.configure(fg_color=hex_color)
+        self.topbar.configure(fg_color=hex_color)
+        self.center_frame.configure(fg_color=hex_color)       # <-- main area
+        self.now_playing_frame.configure(fg_color=hex_color)
+        
 
 # On run, create the app and start the main loop
 if __name__ == "__main__":

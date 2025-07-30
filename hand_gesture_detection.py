@@ -1,6 +1,7 @@
 import mediapipe as mp
 import math
 
+
 # Initialize MediaPipe hands module
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils

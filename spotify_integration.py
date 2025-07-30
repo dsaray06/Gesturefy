@@ -5,7 +5,7 @@ import time
 import platform
 from hand_gesture_detection import GestureRecognizer
 import threading
-
+from io import BytesIO
 
 # Volume control (platform-specific)
 if platform.system() == "Windows":
@@ -147,5 +147,8 @@ class GestureControl(threading.Thread):
                 self.sp.previous_track()
         except Exception as e:
             self.log(f"Error performing action for {gesture}: {e}")
+        
+
+  
 
     
