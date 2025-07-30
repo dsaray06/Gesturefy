@@ -68,8 +68,15 @@ def is_open_fist(hand_landmarks):
 
 def is_pointing_right(hand_landmarks):
     index_finger_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
+    index_finger_mcp = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_MCP]
     wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
-    return index_finger_tip.x > wrist.x and abs(index_finger_tip.y - wrist.y) < 0.4
+
+    horizontal_distance = index_finger_tip.x - wrist.x
+    vertical_alignment = abs(index_finger_tip.y - wrist.y)
+
+    # More lenient: allow slightly greater vertical variance
+    return horizontal_distance > 0.12 and vertical_alignment < 0.5 and \
+           index_finger_tip.x > index_finger_mcp.x
 
 def is_pointing_left(hand_landmarks):
     index_finger_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
@@ -89,5 +96,13 @@ def is_pointing_down(hand_landmarks):
 def is_thumbs_up(hand_landmarks):
     thumb_tip = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_TIP]
     thumb_ip = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_IP]
+    thumb_mcp = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_MCP]
     index_finger_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
-    return thumb_tip.y < thumb_ip.y and thumb_tip.y < index_finger_tip.y
+    wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
+
+    # Stricter: ensure thumb is clearly above index and bent upwards
+    is_thumb_above_ip = thumb_tip.y < thumb_ip.y
+    is_thumb_above_index = thumb_tip.y < index_finger_tip.y - 0.05
+    is_thumb_outward = abs(thumb_tip.x - wrist.x) < 0.2
+
+    return is_thumb_above_ip and is_thumb_above_index and is_thumb_outward
