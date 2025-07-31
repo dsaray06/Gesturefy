@@ -334,15 +334,7 @@ class GesturefyApp:
         self.subtitle = ctk.CTkLabel(self.sidebar, text="Control Spotify\nwith gestures!", font=ctk.CTkFont(family="Montserrat", size=22, weight="bold"), justify="center", text_color="#A0A0A0")
         self.subtitle.place(anchor="center", relx=0.5, rely=0.5)
 
-        # Start/Stop button
-        self.start_stop_btn = ctk.CTkButton(self.sidebar, width=200, height=50, corner_radius= 20, text="Start", command=self.toggle, fg_color="#343333", hover_color="#545454", text_color="white", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), border_color="#1F1F1F", border_width=4)
-        self.start_stop_btn.place(anchor="center", relx=0.5, rely=0.6)
-
-        # Top bar for profile and settings
-        self.topbar = ctk.CTkFrame(self.main_screen, height=40, corner_radius=15, fg_color="#191414")
-        self.topbar.pack(side="top", anchor="ne", padx=20, pady=(10, 0))
-        
-        # Slider
+         # Slider
         # Frame to hold slider, place in alignment with center console and logbox
         self.slider_frame = ctk.CTkFrame(self.main_screen, height=65, width=450, corner_radius=15, fg_color="#191414")
         self.slider_frame.place(relx=0.355, rely=0.055, anchor='center')
@@ -351,20 +343,30 @@ class GesturefyApp:
             button_color="#1DB954",
             button_hover_color="#23E065",
             progress_color="#1DB954",
-            from_=1,
-            to=70,
-            number_of_steps=70,  # (0.1 - (-0.1)) / 0.01 = 20 steps
+            from_=0,
+            to=50,
+            number_of_steps=50,  # (0.1 - (-0.1)) / 0.01 = 20 steps
             width=300,
             command=self.update_depth_threshold
         )
-        self.depth_slider.set(35)
+        self.depth_slider.set(25)
         self.depth_slider.place(relx=0.5, rely=0.43, anchor="center")
 
-        self.depth_label = ctk.CTkLabel(self.slider_frame, text_color="#F1F1F1", font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), text="Depth Threshold: 35.00")
+        self.depth_label = ctk.CTkLabel(self.slider_frame, text_color="#F1F1F1", font=ctk.CTkFont(family="Poppins", size=12, weight="bold"), text="Detection Range")
         self.depth_label.place(relx=0.5, rely=0.8, anchor="center")
+        self.depth_threshold = float(self.depth_slider.get())
+
+        # Start/Stop button
+        self.start_stop_btn = ctk.CTkButton(self.sidebar, width=200, height=50, corner_radius= 20, text="Start", command=self.toggle, fg_color="#343333", hover_color="#545454", text_color="white", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), border_color="#1F1F1F", border_width=4)
+        self.start_stop_btn.place(anchor="center", relx=0.5, rely=0.6)
+
+        # Top bar for profile and settings
+        self.topbar = ctk.CTkFrame(self.main_screen, height=40, corner_radius=15, fg_color="#191414")
+        self.topbar.pack(side="top", anchor="ne", padx=20, pady=(10, 0))
+        
         
         # Log output area
-        self.log_output = ctk.CTkTextbox(self.main_screen, height=160, wrap="word", corner_radius=15, font=ctk.CTkFont(family="Montserrat", size=12), fg_color="#2c2c2c", text_color="gray")
+        self.log_output = ctk.CTkTextbox(self.main_screen, height=160, wrap="word", corner_radius=15, font=ctk.CTkFont(family="Poppins", size=12), fg_color="#2c2c2c", text_color="gray")
         self.log_output.pack(side="bottom", fill="x", padx=20, pady=(5,10))
         self.log_output.configure(state="disabled")
 
@@ -385,7 +387,7 @@ class GesturefyApp:
         self.now_playing_label = ctk.CTkLabel(
             self.now_playing_frame,
             text="Currently Playing",
-            font=ctk.CTkFont(family="Montserrat", size=32, weight="bold"),
+            font=ctk.CTkFont(family="Poppins", size=32, weight="bold"),
             text_color="#1DB954", 
         )
         self.now_playing_label.place(relx=0.285, rely=0.025, anchor="nw")
@@ -393,7 +395,7 @@ class GesturefyApp:
         self.song_title_label = ctk.CTkLabel(
             self.now_playing_frame,
             text="Song Title",
-            font=ctk.CTkFont(family="Montserrat", size=40, weight="bold"),
+            font=ctk.CTkFont(family="Poppins", size=40, weight="bold"),
             text_color="white"
         )
         self.song_title_label.place(relx=0.285, rely=0.22, anchor="sw")
@@ -401,7 +403,7 @@ class GesturefyApp:
         self.artist_label = ctk.CTkLabel(
             self.now_playing_frame,
             text="Artist Name",
-            font=ctk.CTkFont(family="Montserrat", size=28),
+            font=ctk.CTkFont(family="Poppins", size=28),
             text_color="#B3B3B3"
         )
         self.artist_label.place(relx=0.285, rely=0.26, anchor="sw")
@@ -462,8 +464,25 @@ class GesturefyApp:
             self.spotify_login()
 
     def update_depth_threshold(self, val):
-        self.depth_threshold = float(val)
-        self.depth_label.configure(text=f"Depth Threshold: {float(val):.2f}")
+        val = float(val)
+        self.depth_threshold = val
+
+        # push change to the running thread
+        if hasattr(self, "gesture_thread") and self.gesture_thread:
+            self.gesture_thread.depth_threshold = val
+
+        pivot = 25
+        band  = 5.0
+
+        if pivot - band < val < pivot + band:
+            msg = "Average Range"
+        elif val < pivot - band:
+            msg = "Further (More Recognition)"
+        else:
+            msg = "Closer (Less  Recognition)"
+
+        # update the UI once (with both text + number)
+        self.depth_label.configure(text=f"{msg} ({val:.0f})")
 
     def log(self, msg: str):
         print(msg)
@@ -681,7 +700,11 @@ class GesturefyApp:
             self.start_stop_btn.configure(state="normal")
             return
 
-        self.gesture_thread = GestureControl(self.sp, log_callback=self.log)
+        self.gesture_thread = GestureControl(
+            self.sp,
+            log_callback=self.log,
+            depth_threshold=self.depth_threshold
+        )
         self.gesture_thread.start()
         self.running = True
         self.log("Gesture control started. Press stop to end.")
