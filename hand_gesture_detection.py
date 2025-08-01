@@ -8,14 +8,14 @@ hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_c
 
 class GestureRecognizer:
     def recognize(self, hand_landmarks):
-        if is_closed_fist(hand_landmarks):
+        if is_peace_sign(hand_landmarks):
+            return "peace_sign"
+        elif is_closed_fist(hand_landmarks):
             return "closed_fist"
         elif is_open_fist(hand_landmarks):
             return "open_fist"
         elif is_thumbs_up(hand_landmarks):
             return "thumbs_up"
-        elif is_peace_sign(hand_landmarks):
-            return "peace_sign"
         elif is_pointing_up(hand_landmarks):
             return "pointing_up"
         elif is_pointing_down(hand_landmarks):
@@ -110,5 +110,13 @@ def is_thumbs_up(hand_landmarks):
     return is_thumb_above_ip and is_thumb_above_index and is_thumb_outward
 
 def is_peace_sign(hand_landmarks):
-    #peace sign code
-    return 
+    index_finger_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP] #tip
+    index_finger_pip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_PIP] #bottom bend
+    middle_finger_tip = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
+    middle_finger_pip = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_PIP]
+    wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
+    is_index_extended = index_finger_tip.y < index_finger_pip.y
+    is_middle_extended = middle_finger_tip.y < middle_finger_pip.y
+    ring_finger_tip = hand_landmarks.landmark[mp_hands.HandLandmark.RING_FINGER_TIP]
+    thumb_tip = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_TIP] 
+    return is_index_extended and is_middle_extended and ring_finger_tip.y > thumb_tip.y

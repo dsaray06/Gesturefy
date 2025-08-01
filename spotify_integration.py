@@ -30,13 +30,14 @@ def set_volume(volume_change):
         subprocess.call(["osascript", "-e", f"set volume output volume {new_volume}"])
 
 class GestureControl(threading.Thread):
-    def __init__(self, sp, log_callback=None, depth_threshold = 0.0):
+    def __init__(self, sp, log_callback=None, depth_threshold = 0.0, stop_callback=None):
         super().__init__()
         self.sp = sp
         self._running = True
         self.log = log_callback or print
         self.cooldown = 1  # seconds between reset
         self.last_action_time = 0
+        self.stop_callback = stop_callback  # <-- Add this
         # MediaPipe init
         self.mp_hands = mp.solutions.hands
         self.mp_drawing = mp.solutions.drawing_utils
@@ -75,13 +76,13 @@ class GestureControl(threading.Thread):
             frame = cv2.flip(frame, 1)
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = self.hands.process(rgb_frame)
-            self.depth_scale = 100000000
+            SCALE_FACTOR = 100000000
             if results.multi_hand_landmarks:
                 for hand_landmarks in results.multi_hand_landmarks:
                    #Check how close the wrist or palm is
                     raw_z   = hand_landmarks.landmark[0].z    # e.g. –0.05 when very close
-                    z_depth = abs(raw_z * self.depth_scale) 
-                    print(z_depth)  
+                    z_depth = abs(raw_z * SCALE_FACTOR)   
+                    #print(z_depth)
                     if z_depth < self.depth_threshold:
                         print(f"⛔ Hand too far: {z_depth:.3f} > threshold {self.depth_threshold:.3f}")
                         continue  # Skip if hand is too far
@@ -102,7 +103,14 @@ class GestureControl(threading.Thread):
                             self.last_triggered = gesture
                             self.last_action_time = current_time
                             self.gesture_counter = {key: 0 for key in self.gesture_counter}
-                            self.handle_gesture_action(gesture)
+                            if gesture == "peace_sign":
+                                self.log("Peace sign detected - stopping gesture detection.")
+                                if self.stop_callback:
+                                    self.stop_callback()  
+                                self._running = False
+                                break
+                            else:    
+                                self.handle_gesture_action(gesture)
                     else:
                         # Only reset counters if no valid gesture or different gesture
                         self.gesture_counter = {key: 0 for key in self.gesture_counter}
@@ -134,8 +142,6 @@ class GestureControl(threading.Thread):
                     track_id = current_playback['item']['id']
                     self.sp.current_user_saved_tracks_add([track_id])
                     self.log("Thumbs Up - Liked Song")
-            #elif gesture == "peace_sign":
-                #code for that
             elif gesture == "pointing_up":
                 self.log("Pointing Up - Increasing Volume")
                 set_volume(10)
