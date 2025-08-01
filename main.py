@@ -179,6 +179,10 @@ class GesturefyApp:
         self.root.withdraw()
         self.recognizer = GestureRecognizer()
         self.keep_refreshing_token = False
+        self.instruction_page_index = 0
+        self.instruction_pages = []
+        self.depth_threshold = 25.0
+        self.slider_touched = False
 
         font_path = resource_path("fonts/Montserrat-Regular.ttf")
         montserrat_path = Path(font_path)
@@ -200,7 +204,8 @@ class GesturefyApp:
 
         self.running = False
         self.sp = None
-        self.gesture_thread = None
+        self.gesture_thread = None     
+            
             
     # Make login screen
         self.login_screen = ctk.CTkFrame(root, fg_color="#212121")
@@ -306,7 +311,7 @@ class GesturefyApp:
         )
         self.loading_label.place(relx=0.5, rely=0.5, anchor="center")
         self.loading_screen.pack_forget()  # hide it initially - only show while logging in
-
+            
     # If not already logged in, show login screen
         if not load_tokens():
             self.login_screen.pack(fill="both", expand=True)
@@ -334,28 +339,6 @@ class GesturefyApp:
         self.subtitle = ctk.CTkLabel(self.sidebar, text="Control Spotify\nwith gestures!", font=ctk.CTkFont(family="Montserrat", size=22, weight="bold"), justify="center", text_color="#A0A0A0")
         self.subtitle.place(anchor="center", relx=0.5, rely=0.5)
 
-         # Slider
-        # Frame to hold slider, place in alignment with center console and logbox
-        self.slider_frame = ctk.CTkFrame(self.main_screen, height=65, width=450, corner_radius=15, fg_color="#191414")
-        self.slider_frame.place(relx=0.355, rely=0.055, anchor='center')
-        self.depth_slider = ctk.CTkSlider(
-            self.slider_frame,
-            button_color="#1DB954",
-            button_hover_color="#23E065",
-            progress_color="#1DB954",
-            from_=0,
-            to=50,
-            number_of_steps=50,  # (0.1 - (-0.1)) / 0.01 = 20 steps
-            width=300,
-            command=self.update_depth_threshold
-        )
-        self.depth_slider.set(25)
-        self.depth_slider.place(relx=0.5, rely=0.43, anchor="center")
-
-        self.depth_label = ctk.CTkLabel(self.slider_frame, text_color="#F1F1F1", font=ctk.CTkFont(family="Poppins", size=12, weight="bold"), text="Detection Range")
-        self.depth_label.place(relx=0.5, rely=0.8, anchor="center")
-        self.depth_threshold = float(self.depth_slider.get())
-
         # Start/Stop button
         self.start_stop_btn = ctk.CTkButton(self.sidebar, width=200, height=50, corner_radius= 20, text="Start", command=self.toggle, fg_color="#343333", hover_color="#545454", text_color="white", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), border_color="#1F1F1F", border_width=4)
         self.start_stop_btn.place(anchor="center", relx=0.5, rely=0.6)
@@ -364,9 +347,8 @@ class GesturefyApp:
         self.topbar = ctk.CTkFrame(self.main_screen, height=40, corner_radius=15, fg_color="#191414")
         self.topbar.pack(side="top", anchor="ne", padx=20, pady=(10, 0))
         
-        
         # Log output area
-        self.log_output = ctk.CTkTextbox(self.main_screen, height=160, wrap="word", corner_radius=15, font=ctk.CTkFont(family="Poppins", size=12), fg_color="#2c2c2c", text_color="gray")
+        self.log_output = ctk.CTkTextbox(self.main_screen, height=160, wrap="word", corner_radius=15, font=ctk.CTkFont(family="Montserrat", size=12), fg_color="#2c2c2c", text_color="gray")
         self.log_output.pack(side="bottom", fill="x", padx=20, pady=(5,10))
         self.log_output.configure(state="disabled")
 
@@ -387,7 +369,7 @@ class GesturefyApp:
         self.now_playing_label = ctk.CTkLabel(
             self.now_playing_frame,
             text="Currently Playing",
-            font=ctk.CTkFont(family="Poppins", size=32, weight="bold"),
+            font=ctk.CTkFont(family="Montserrat", size=32, weight="bold"),
             text_color="#1DB954", 
         )
         self.now_playing_label.place(relx=0.285, rely=0.025, anchor="nw")
@@ -395,7 +377,7 @@ class GesturefyApp:
         self.song_title_label = ctk.CTkLabel(
             self.now_playing_frame,
             text="Song Title",
-            font=ctk.CTkFont(family="Poppins", size=40, weight="bold"),
+            font=ctk.CTkFont(family="Montserrat", size=40, weight="bold"),
             text_color="white"
         )
         self.song_title_label.place(relx=0.285, rely=0.22, anchor="sw")
@@ -403,7 +385,7 @@ class GesturefyApp:
         self.artist_label = ctk.CTkLabel(
             self.now_playing_frame,
             text="Artist Name",
-            font=ctk.CTkFont(family="Poppins", size=28),
+            font=ctk.CTkFont(family="Montserrat", size=28),
             text_color="#B3B3B3"
         )
         self.artist_label.place(relx=0.285, rely=0.26, anchor="sw")
@@ -463,6 +445,115 @@ class GesturefyApp:
         if not login:
             self.spotify_login()
 
+    def open_instructions(self):
+        self.settings_screen.pack_forget()
+        self.instructions_screen = ctk.CTkFrame(self.root, fg_color = "#212121")
+        self.instructions_screen.pack(fill="both", expand=True)
+        self.instruction_page_index = 0
+        self.instruction_pages = []  # clear old pages
+
+        # Welcome Page
+        page1 = ctk.CTkFrame(self.instructions_screen, fg_color="#212121")
+        welcome_label = ctk.CTkLabel(page1, text="Welcome to Gesturefy!", font=ctk.CTkFont(family="Montserrat", size=44, weight="bold"), text_color="white")
+        welcome_label.place(relx=0.5, rely=0.5, anchor="center")
+
+        # Page 2 - Gesture Info
+        page2 = ctk.CTkFrame(self.instructions_screen, fg_color="#212121")
+
+        # Center container
+        content_frame = ctk.CTkFrame(page2, fg_color="transparent")
+        content_frame.pack(expand=True)  # This centers vertically
+
+        gesture_data = [
+            (resource_path("assets/pointright.png"), "Point Right – Skip"),
+            (resource_path("assets/placeholder_album.png"), "Point Left – Previous"),
+            (resource_path("assets/placeholder_album.png"), "Point Up – Volume Up"),
+            (resource_path("assets/placeholder_album.png"), "Point Down – Volume Down"),
+            (resource_path("assets/placeholder_album.png"), "Open Hand – Pause"),
+            (resource_path("assets/placeholder_album.png"), "Closed Fist – Play"),
+            (resource_path("assets/placeholder_album.png"), "Thumbs Up – Like"),
+            (resource_path("assets/placeholder_album.png"), "Peace Sign – Stop Gesture Detection")
+        ]
+
+        # First row — place in columns 1, 2, 3 (leave column 0 empty)
+        for i in range(4):
+            img = ctk.CTkImage(light_image=Image.open(gesture_data[i][0]).resize((250, 150)), size=(250, 150)) #Good ratio, but decrease size
+            img_label = ctk.CTkLabel(content_frame, image=img, text="")
+            img_label.image = img
+            img_label.grid(row=0, column=i, padx=70, pady=(20, 8))
+
+            caption = ctk.CTkLabel(content_frame, text=gesture_data[i][1], text_color="white", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"))
+            caption.grid(row=1, column=i, pady=(0,20))
+
+        # Second row — use all 4 columns starting from column 0
+        for i in range(4):
+            img = ctk.CTkImage(light_image=Image.open(gesture_data[i+4][0]).resize((150, 150)), size=(150, 150))
+            img_label = ctk.CTkLabel(content_frame, image=img, text="")
+            img_label.image = img
+            img_label.grid(row=2, column=i, padx=70, pady=(30, 8))
+
+            caption = ctk.CTkLabel(content_frame, text=gesture_data[i+4][1], text_color="white", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"))
+            caption.grid(row=3, column=i)
+
+        # Configure 4 columns equally to center both rows
+        content_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
+
+        # Page 3 - Depth slider explanation
+        page3 = ctk.CTkFrame(self.instructions_screen, fg_color="#212121")
+        depth_img = ctk.CTkImage(light_image=Image.open(resource_path("assets/slider_picture.png")).resize((400,150)), size=(400,150))
+        depth_img_label = ctk.CTkLabel(page3, image=depth_img, text="")
+        depth_img_label.place(relx=0.5, rely=0.32, anchor="center")
+        depth_caption = ctk.CTkLabel(page3, 
+                                     text="""
+                                     Depth perception slider - use to change the distance you make gestures from. 
+                                     The default (25) is average range. 
+                                     The closer it gets to 50, the closer your hand must be to the webcam. 
+                                     The closer it gets to 1, the further away you can be.""", 
+                                     text_color="white", 
+                                     font=ctk.CTkFont(family="Montserrat", size=20, weight="bold")
+                                     )
+        depth_caption.place(relx=0.45, rely=0.5, anchor="center")
+
+        self.instruction_pages = [page1, page2, page3]
+
+        # Top-right Next button
+        self.next_button = ctk.CTkButton(self.instructions_screen, 
+                                         text="Next", 
+                                         command=self.next_instruction_page,
+                                         width=200,
+                                        height=50,
+                                        corner_radius=20,
+                                        font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"),
+                                        text_color="white",
+                                        fg_color="#343333",
+                                        hover_color="#545454",
+                                        border_color="white",
+                                        border_width=4)
+        self.next_button.place(relx=0.97, rely=0.03, anchor='ne')  # Top right
+
+        # Show first page
+        self.show_instruction_page(0)
+
+    def show_instruction_page(self, index):
+        for i, page in enumerate(self.instruction_pages):
+            page.pack_forget()
+        self.instruction_pages[index].pack(fill='both', expand=True)
+
+        # Update button on last page
+        if index == len(self.instruction_pages) - 1:
+            self.next_button.configure(text="Back to Gesturefy", command=self.enter_main_app)
+        else:
+            self.next_button.configure(text="Next", command=self.next_instruction_page)
+        
+    def next_instruction_page(self):
+        self.instruction_page_index += 1
+        if self.instruction_page_index < len(self.instruction_pages):
+            self.show_instruction_page(self.instruction_page_index)
+    
+    def enter_main_app(self):
+        self.instructions_screen.pack_forget()
+        self.settings_screen.pack(fill='both', expand=True)
+
     def update_depth_threshold(self, val):
         val = float(val)
         self.depth_threshold = val
@@ -482,7 +573,8 @@ class GesturefyApp:
             msg = "Closer (Less  Recognition)"
 
         # update the UI once (with both text + number)
-        self.depth_label.configure(text=f"{msg} ({val:.0f})")
+        if self.slider_touched:
+            self.depth_label.configure(text=f"{msg} ({val:.0f})")
 
     def log(self, msg: str):
         print(msg)
@@ -583,6 +675,10 @@ class GesturefyApp:
 
         threading.Thread(target=self._perform_login, daemon=True).start()        
         
+    def on_depth_slider_change(self, val):
+        self.slider_touched = True
+        self.update_depth_threshold(val)
+        
     def open_settings(self):
         self.log("Opening settings...")
         self.main_screen.pack_forget()
@@ -596,6 +692,7 @@ class GesturefyApp:
         #Center frame for settings content
         self.settings_content_frame = ctk.CTkFrame(self.settings_screen, fg_color="transparent", width=600, height=400)
         self.settings_content_frame.place(relx=0.5, rely=0.5, anchor="center")
+        
         # Back button
         self.back_button = ctk.CTkButton(
             self.settings_content_frame,
@@ -611,7 +708,46 @@ class GesturefyApp:
             border_color="#1F1F1F",
             border_width=4
         )
-        self.back_button.pack(pady=(10, 20))
+        self.back_button.pack(pady=(0, 20))
+        
+        # Slider
+        # Frame to hold slider, place in alignment with buttons
+        self.slider_frame = ctk.CTkFrame(self.settings_content_frame, border_color="#1F1F1F", border_width=4, height=50, width=200, corner_radius=20, fg_color="#343333", bg_color="transparent")
+        self.slider_frame.pack(pady=(10,20))
+        self.depth_slider = ctk.CTkSlider(
+            self.slider_frame,
+            button_color="#1DB954",
+            button_hover_color="#23E065",
+            progress_color="#1DB954",
+            fg_color="#1F1F1F",
+            bg_color="#343333",
+            from_=0,
+            to=50,
+            number_of_steps=50, 
+            width=180,
+            command=self.on_depth_slider_change
+        )
+        self.depth_slider.set(self.depth_threshold)
+        self.depth_slider.pack(padx=(10),pady=(10,0))
+        self.depth_label = ctk.CTkLabel(self.slider_frame, text_color="#F1F1F1", font=ctk.CTkFont(family="Montserrat", size=13, weight="bold"), text="Detection Range")
+        self.depth_label.pack(pady=(2, 5))
+        self.update_depth_threshold(self.depth_threshold)
+        
+        # Help button
+        self.help_button = ctk.CTkButton(self.settings_content_frame, 
+                                         text="Help", 
+                                         command=self.open_instructions,
+                                         width=200, 
+                                         height=50, 
+                                         corner_radius=20, 
+                                         font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"),
+                                        text_color="white",
+                                        fg_color="#343333",
+                                        hover_color="#545454",
+                                        border_color="#1F1F1F",
+                                        border_width=4 )
+        self.help_button.pack(pady=(10,20))
+        
         
         # Switch user button
         self.switch_user_button = ctk.CTkButton(
@@ -700,11 +836,7 @@ class GesturefyApp:
             self.start_stop_btn.configure(state="normal")
             return
 
-        self.gesture_thread = GestureControl(
-            self.sp,
-            log_callback=self.log,
-            depth_threshold=self.depth_threshold
-        )
+        self.gesture_thread = GestureControl(self.sp, log_callback=self.log, depth_threshold=self.depth_threshold)
         self.gesture_thread.start()
         self.running = True
         self.log("Gesture control started. Press stop to end.")
@@ -725,7 +857,7 @@ class GesturefyApp:
             last_track = None  
             last_progress = 0  
             placeholder_path = resource_path("assets/placeholder_album.png")
-
+            
             while True:
                 try:
                     if not self.sp:
@@ -741,7 +873,6 @@ class GesturefyApp:
                         album_art_url = track["album"]["images"][0]["url"]
                         progress_ms = current["progress_ms"] or 0
                         duration_ms = track["duration_ms"]
-                        
 
                         last_track = {
                             "name": name,
@@ -765,7 +896,8 @@ class GesturefyApp:
                         self.album_art_img = ctk.CTkImage(light_image=image_pil, size=(246, 246))
                         self.album_art_label.configure(image=self.album_art_img)
                         self.album_art_label.image = self.album_art_img  # prevent garbage collection
-                        self.update_theme_based_on_album(album_art_url)
+                        #self.update_theme_based_on_album(album_art_url) Stalling progress bar - commented out for now
+                        
 
                         queue = self.sp.queue()
                         if queue and queue.get("queue"):
@@ -790,6 +922,10 @@ class GesturefyApp:
                         self.artist_label.configure(text="Play track in Spotify (make sure it's open)")
                         self.progress_bar.set(0)
                         self.track_time_label.configure(text="0:00 / 0:00")
+                        self.sidebar.configure(fg_color="#191414")
+                        self.topbar.configure(fg_color="#191414")
+                        self.center_frame.configure(fg_color="#191414")       # <-- main area
+                        self.log_output.configure(fg_color="#2c2c2c")
 
                         if os.path.exists(placeholder_path):
                             placeholder_img = Image.open(placeholder_path).resize((246, 246), Image.LANCZOS)
@@ -812,11 +948,11 @@ class GesturefyApp:
                 except Exception as e:
                     print(f"Error updating track info: {e}")
 
-                time.sleep(0.5)
+                time.sleep(0.3)
 
         thread = threading.Thread(target=update_loop, daemon=True)
         thread.start()
-
+        
     def update_theme_based_on_album(self, album_art_url):
         if not self.sp or not album_art_url:
             self.log("Spotify client not initialized or no album art URL.")
@@ -826,13 +962,12 @@ class GesturefyApp:
         mild_rgb = mild_tint_from_rgb(dominant_rgb)
         hex_color = rgb_to_hex(mild_rgb)
         # TODO: Update your app UI colors with hex_color here
-        self.main_screen.configure(fg_color=hex_color)
-        self.sidebar.configure(fg_color=hex_color)
-        self.topbar.configure(fg_color=hex_color)
-        self.center_frame.configure(fg_color=hex_color)       # <-- main area
-        self.now_playing_frame.configure(fg_color=hex_color)
-        
-
+        self.main_screen.configure(fg_color=hex_color) # Just change main screen, looks best
+        #self.sidebar.configure(fg_color=hex_color)
+        #self.topbar.configure(fg_color=hex_color)
+        #self.center_frame.configure(fg_color=hex_color)       # <-- main area
+        #self.now_playing_frame.configure(fg_color=hex_color)
+    
 # On run, create the app and start the main loop
 if __name__ == "__main__":
     app = ctk.CTk()
