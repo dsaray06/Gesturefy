@@ -1,11 +1,10 @@
 import mediapipe as mp
 import math
 
-
 # Initialize MediaPipe hands module
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
-hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.8,min_tracking_confidence=0.9)
+hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.8, min_tracking_confidence=0.9)
 
 class GestureRecognizer:
     def recognize(self, hand_landmarks):
@@ -15,6 +14,8 @@ class GestureRecognizer:
             return "open_fist"
         elif is_thumbs_up(hand_landmarks):
             return "thumbs_up"
+        elif is_peace_sign(hand_landmarks):
+            return "peace_sign"
         elif is_pointing_up(hand_landmarks):
             return "pointing_up"
         elif is_pointing_down(hand_landmarks):
@@ -107,3 +108,7 @@ def is_thumbs_up(hand_landmarks):
     is_thumb_outward = abs(thumb_tip.x - wrist.x) < 0.2
 
     return is_thumb_above_ip and is_thumb_above_index and is_thumb_outward
+
+def is_peace_sign(hand_landmarks):
+    #peace sign code
+    return 
