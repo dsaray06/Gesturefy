@@ -48,6 +48,7 @@ class GestureControl(threading.Thread):
         "closed_fist": 0,
         "open_fist": 0,
         "thumbs_up": 0,
+        "peace_sign": 0,
         "pointing_up": 0,
         "pointing_down": 0,
         "pointing_left": 0,
@@ -107,7 +108,6 @@ class GestureControl(threading.Thread):
                         self.gesture_counter = {key: 0 for key in self.gesture_counter}
                         self.last_triggered = None
 
-
         cap.release()
 
     def handle_gesture_action(self, gesture):
@@ -134,6 +134,8 @@ class GestureControl(threading.Thread):
                     track_id = current_playback['item']['id']
                     self.sp.current_user_saved_tracks_add([track_id])
                     self.log("Thumbs Up - Liked Song")
+            #elif gesture == "peace_sign":
+                #code for that
             elif gesture == "pointing_up":
                 self.log("Pointing Up - Increasing Volume")
                 set_volume(10)
@@ -148,8 +150,5 @@ class GestureControl(threading.Thread):
                 self.sp.previous_track()
         except Exception as e:
             self.log(f"Error performing action for {gesture}: {e}")
-        
-
-  
 
     
