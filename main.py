@@ -348,7 +348,7 @@ class GesturefyApp:
         self.topbar.pack(side="top", anchor="ne", padx=20, pady=(10, 0))
         
         # Log output area
-        self.log_output = ctk.CTkTextbox(self.main_screen, height=160, wrap="word", corner_radius=15, font=ctk.CTkFont(family="Montserrat", size=12), fg_color="#2c2c2c", text_color="gray")
+        self.log_output = ctk.CTkTextbox(self.main_screen, height=160, wrap="word", corner_radius=15, font=ctk.CTkFont(family="Montserrat", size=12), fg_color="#191919", text_color="white")
         self.log_output.pack(side="bottom", fill="x", padx=20, pady=(5,10))
         self.log_output.configure(state="disabled")
 
@@ -404,8 +404,11 @@ class GesturefyApp:
             font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"),
             text_color="white"
         )
-        
+
         self.track_time_label.place(relx = 0.99, rely=0.17,anchor="ne")
+
+        self.current_album_url = None
+        
 
         # --- "Next Up" Song Info ---
         self.next_up_container = ctk.CTkFrame(self.center_frame, fg_color="transparent")
@@ -444,6 +447,7 @@ class GesturefyApp:
         # Logs in if initially displaying main_screen
         if not login:
             self.spotify_login()
+    
 
     def open_instructions(self):
         self.settings_screen.pack_forget()
@@ -714,6 +718,8 @@ class GesturefyApp:
         # Frame to hold slider, place in alignment with buttons
         self.slider_frame = ctk.CTkFrame(self.settings_content_frame, border_color="#1F1F1F", border_width=4, height=50, width=200, corner_radius=20, fg_color="#343333", bg_color="transparent")
         self.slider_frame.pack(pady=(10,20))
+        
+        self.depth_threshold = 25.0 
         self.depth_slider = ctk.CTkSlider(
             self.slider_frame,
             button_color="#1DB954",
@@ -892,11 +898,20 @@ class GesturefyApp:
 
                         image_bytes = requests.get(album_art_url).content
                         image_pil = Image.open(io.BytesIO(image_bytes)).resize((246, 246), Image.LANCZOS)
-
+                        
                         self.album_art_img = ctk.CTkImage(light_image=image_pil, size=(246, 246))
+                            # only repaint when the album really changed
+                           # … after configuring album_art_label …
                         self.album_art_label.configure(image=self.album_art_img)
-                        self.album_art_label.image = self.album_art_img  # prevent garbage collection
-                        #self.update_theme_based_on_album(album_art_url) Stalling progress bar - commented out for now
+                        self.album_art_label.image = self.album_art_img
+
+                        # only recolor on a new album
+                        if album_art_url != self.current_album_url:
+                            self.current_album_url = album_art_url
+                            self.update_theme_based_on_album(album_art_url)
+
+
+                        self.update_theme_based_on_album(album_art_url) #Stalling progress bar - commented out for now
                         
 
                         queue = self.sp.queue()
@@ -963,10 +978,10 @@ class GesturefyApp:
         hex_color = rgb_to_hex(mild_rgb)
         # TODO: Update your app UI colors with hex_color here
         self.main_screen.configure(fg_color=hex_color) # Just change main screen, looks best
-        #self.sidebar.configure(fg_color=hex_color)
-        #self.topbar.configure(fg_color=hex_color)
-        #self.center_frame.configure(fg_color=hex_color)       # <-- main area
-        #self.now_playing_frame.configure(fg_color=hex_color)
+        self.sidebar.configure(fg_color=hex_color)
+        self.topbar.configure(fg_color=hex_color)
+        self.center_frame.configure(fg_color=hex_color)       # <-- main area
+        self.now_playing_frame.configure(fg_color=hex_color)
     
 # On run, create the app and start the main loop
 if __name__ == "__main__":

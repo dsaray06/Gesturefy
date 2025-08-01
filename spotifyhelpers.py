@@ -9,7 +9,7 @@ def mild_tint_from_rgb(rgb):
     h, l, s = colorsys.rgb_to_hls(r, g, b)
     
     # Reduce saturation and lightness for mild effect
-    mild_s = 0.1  # low saturation
+    mild_s = 0.3  # low saturation
     mild_l = 0.1  # dark lightness
     
     # Build new RGB from mild hue, low saturation and lightness

@@ -75,13 +75,13 @@ class GestureControl(threading.Thread):
             frame = cv2.flip(frame, 1)
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = self.hands.process(rgb_frame)
-            SCALE_FACTOR = 100000000
+            self.depth_scale = 100000000
             if results.multi_hand_landmarks:
                 for hand_landmarks in results.multi_hand_landmarks:
                    #Check how close the wrist or palm is
                     raw_z   = hand_landmarks.landmark[0].z    # e.g. –0.05 when very close
-                    z_depth = abs(raw_z * SCALE_FACTOR)   
-                    #print(z_depth)
+                    z_depth = abs(raw_z * self.depth_scale) 
+                    print(z_depth)  
                     if z_depth < self.depth_threshold:
                         print(f"⛔ Hand too far: {z_depth:.3f} > threshold {self.depth_threshold:.3f}")
                         continue  # Skip if hand is too far
