@@ -15,9 +15,13 @@ import requests
 import time
 import sys
 import uuid
+
 import subprocess
 from colorthief import ColorThief
-from spotifyhelpers import get_current_album_art_url, get_dominant_color_from_url, rgb_to_hex, mild_tint_from_rgb
+from spotifyhelpers import get_current_album_art_url, get_dominant_color_from_url, rgb_to_hex, mild_tint_from_rgb,blend_tint
+import customtkinter as ctk
+ctk.set_appearance_mode("Dark") 
+ctk.set_default_color_theme("green")  
 
 TOKEN_PATH = 'tokens.json'
 BACKEND_URL = "https://gesturefy-auth-backend-1f562dbd4c73.herokuapp.com"
@@ -136,7 +140,10 @@ def get_spotify_client(status_callback=None):
         if status_callback:
             status_callback("Authentication failed.")
         return None
-    sp = spotipy.Spotify(auth=access_token)
+    sp = spotipy.Spotify(
+        auth=access_token,
+        requests_timeout=15   # give it up to 15 seconds instead of the 5-second default
+    )
     return sp
 
 def get_circular_image(image_source, size=(32, 32), upscale=4):
@@ -722,6 +729,8 @@ class GesturefyApp:
         # Frame to hold slider, place in alignment with buttons
         self.slider_frame = ctk.CTkFrame(self.settings_content_frame, border_color="#1F1F1F", border_width=4, height=50, width=200, corner_radius=20, fg_color="#343333", bg_color="transparent")
         self.slider_frame.pack(pady=(10,20))
+        
+        self.depth_threshold = 0
         self.depth_slider = ctk.CTkSlider(
             self.slider_frame,
             button_color="#1DB954",
@@ -755,7 +764,15 @@ class GesturefyApp:
                                         border_color="#1F1F1F",
                                         border_width=4 )
         self.help_button.pack(pady=(10,20))
-        
+        #Light Mode Switch
+        self.theme_switch = ctk.CTkSwitch(
+            master=self.settings_content_frame,
+            text="Light/Dark Mode",
+            font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"),
+            fg_color="#343333",
+            command=self.on_theme_switch
+        )
+        self.theme_switch.pack(pady=(10, 20))
         
         # Switch user button
         self.switch_user_button = ctk.CTkButton(
@@ -906,7 +923,7 @@ class GesturefyApp:
                         self.album_art_img = ctk.CTkImage(light_image=image_pil, size=(246, 246))
                         self.album_art_label.configure(image=self.album_art_img)
                         self.album_art_label.image = self.album_art_img  # prevent garbage collection
-                        #self.update_theme_based_on_album(album_art_url) Stalling progress bar - commented out for now
+                        self.update_theme_based_on_album(album_art_url) 
                         
 
                         queue = self.sp.queue()
@@ -932,10 +949,10 @@ class GesturefyApp:
                         self.artist_label.configure(text="Play track in Spotify (make sure it's open)")
                         self.progress_bar.set(0)
                         self.track_time_label.configure(text="0:00 / 0:00")
-                        self.sidebar.configure(fg_color="#191414")
-                        self.topbar.configure(fg_color="#191414")
-                        self.center_frame.configure(fg_color="#191414")       # <-- main area
-                        self.log_output.configure(fg_color="#2c2c2c")
+                        #self.sidebar.configure(fg_color="#191414")
+                        #self.topbar.configure(fg_color="#191414")
+                        #self.center_frame.configure(fg_color="#191414")       # <-- main area
+                        #self.log_output.configure(fg_color="#2c2c2c")
 
                         if os.path.exists(placeholder_path):
                             placeholder_img = Image.open(placeholder_path).resize((246, 246), Image.LANCZOS)
@@ -970,13 +987,46 @@ class GesturefyApp:
         
         dominant_rgb = get_dominant_color_from_url(album_art_url)
         mild_rgb = mild_tint_from_rgb(dominant_rgb)
+        mode = ctk.get_appearance_mode()   # returns "Light" or "Dark"
+        if mode == "Light":
+            sat_scale   = 0.3
+            light_scale = 0.4
+            self.start_stop_btn.configure(fg_color = "#7f7f7f")
+            self.log_output.configure(fg_color = "#7f7f7f", border_color="#7f7f7f")
+            self.subtitle.configure(text_color="#343333")
+            base = (240,240,240)
+            
+
+        else:
+            sat_scale   = 0.1
+            light_scale = 0.05
+            base = (25,25,25)
+            self.start_stop_btn.configure(fg_color = "#343333")
+            self.log_output.configure(fg_color = "#343333", border_color="#343333")
+            self.subtitle.configure(text_color="#7f7f7f")
+
+        # usage in main.py, after fetching dominant_color:
+        dom = get_dominant_color_from_url(album_art_url)     # e.g. (200,50,30)
+        subtle = blend_tint(dom, base, alpha=0.1)
+        self.root.configure(fg_color=subtle)
+
+
+        mild_rgb = mild_tint_from_rgb(dominant_rgb, sat_scale, light_scale)
         hex_color = rgb_to_hex(mild_rgb)
         # TODO: Update your app UI colors with hex_color here
         self.main_screen.configure(fg_color=hex_color) # Just change main screen, looks best
-        #self.sidebar.configure(fg_color=hex_color)
-        #self.topbar.configure(fg_color=hex_color)
-        #self.center_frame.configure(fg_color=hex_color)       # <-- main area
-        #self.now_playing_frame.configure(fg_color=hex_color)
+        self.sidebar.configure(fg_color=hex_color)
+        self.topbar.configure(fg_color=hex_color)
+        self.center_frame.configure(fg_color=hex_color)       # <-- main area
+        self.now_playing_frame.configure(fg_color=hex_color)
+    
+    def on_theme_switch(self):
+        # CTkSwitch.get() is True when “on,” False when “off”
+        new_mode = "Light" if self.theme_switch.get() else "Dark"
+        # This flips *all* CTk widgets automatically
+        ctk.set_appearance_mode(new_mode)
+        # Update the switch’s label so it always shows the *other* mode
+        self.theme_switch.configure(text=f"{new_mode} Mode")
     
 # On run, create the app and start the main loop
 if __name__ == "__main__":
