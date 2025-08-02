@@ -730,6 +730,7 @@ class GesturefyApp:
         self.slider_frame = ctk.CTkFrame(self.settings_content_frame, border_color="#1F1F1F", border_width=4, height=50, width=200, corner_radius=20, fg_color="#343333", bg_color="transparent")
         self.slider_frame.pack(pady=(10,20))
         
+        self.depth_threshold = 25
         self.depth_threshold = 0
         self.depth_slider = ctk.CTkSlider(
             self.slider_frame,
@@ -992,7 +993,7 @@ class GesturefyApp:
             sat_scale   = 0.3
             light_scale = 0.4
             self.start_stop_btn.configure(fg_color = "#7f7f7f")
-            self.log_output.configure(fg_color = "#7f7f7f", border_color="#7f7f7f")
+            self.log_output.configure(fg_color = "#7f7f7f", border_color="#7f7f7f", text_color = "#343333")
             self.subtitle.configure(text_color="#343333")
             base = (240,240,240)
             
