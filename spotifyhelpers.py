@@ -3,18 +3,22 @@ from io import BytesIO
 from colorthief import ColorThief
 import colorsys
 
-def mild_tint_from_rgb(rgb):
-    # Convert RGB (0-255) to HLS (note: HLS in colorsys, lightness is middle)
-    r, g, b = [x/255 for x in rgb]
-    h, l, s = colorsys.rgb_to_hls(r, g, b)
-    
-    # Reduce saturation and lightness for mild effect
-    mild_s = 0.3  # low saturation
-    mild_l = 0.1  # dark lightness
-    
-    # Build new RGB from mild hue, low saturation and lightness
+def mild_tint_from_rgb(rgb, sat_scale=0.3, light_scale=0.4):
+    """
+    rgb: (r,g,b) 0–255
+    sat_scale: how much to damp the saturation (smaller → gentler tint)
+    light_scale: how much closer to white you want to go
+    """
+    r, g, b = rgb
+    h, l, s = colorsys.rgb_to_hls(r/255, g/255, b/255)
+
+    # in Dark mode we might want a stronger tint;
+    # in Light we usually want a more washed-out pastel
+    mild_l = l + (1 - l) * light_scale
+    mild_s = s * sat_scale
+
     r2, g2, b2 = colorsys.hls_to_rgb(h, mild_l, mild_s)
-    return int(r2 * 255), int(g2 * 255), int(b2 * 255)
+    return (int(r2*255), int(g2*255), int(b2*255))
 
 
 def get_current_album_art_url(sp):
@@ -34,3 +38,10 @@ def get_dominant_color_from_url(image_url):
 
 def rgb_to_hex(rgb_tuple):
     return '#%02x%02x%02x' % rgb_tuple
+
+# in spotifyhelpers.py
+def blend_tint(rgb, bg_rgb, alpha=0.1):
+    """Return a hex color α-blend of rgb over bg_rgb."""
+    blended = tuple(int(alpha*c + (1-alpha)*b) for c, b in zip(rgb, bg_rgb))
+    return '#{:02x}{:02x}{:02x}'.format(*blended)
+
