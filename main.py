@@ -355,7 +355,7 @@ class GesturefyApp:
         self.topbar.pack(side="top", anchor="ne", padx=20, pady=(10, 0))
         
         # Log output area
-        self.log_output = ctk.CTkTextbox(self.main_screen, height=160, wrap="word", corner_radius=15, font=ctk.CTkFont(family="Montserrat", size=12), fg_color="#191919", text_color="white")
+        self.log_output = ctk.CTkTextbox(self.main_screen, height=160, wrap="word", corner_radius=15, font=ctk.CTkFont(family="Montserrat", size=12), fg_color="#2c2c2c", text_color="gray")
         self.log_output.pack(side="bottom", fill="x", padx=20, pady=(5,10))
         self.log_output.configure(state="disabled")
 
@@ -411,11 +411,8 @@ class GesturefyApp:
             font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"),
             text_color="white"
         )
-
-        self.track_time_label.place(relx = 0.99, rely=0.17,anchor="ne")
-
-        self.current_album_url = None
         
+        self.track_time_label.place(relx = 0.99, rely=0.17,anchor="ne")
 
         # --- "Next Up" Song Info ---
         self.next_up_container = ctk.CTkFrame(self.center_frame, fg_color="transparent")
@@ -454,7 +451,6 @@ class GesturefyApp:
         # Logs in if initially displaying main_screen
         if not login:
             self.spotify_login()
-    
 
     def open_instructions(self):
         self.settings_screen.pack_forget()
@@ -477,28 +473,36 @@ class GesturefyApp:
 
         gesture_data = [
             (resource_path("assets/pointright.png"), "Point Right – Skip"),
-            (resource_path("assets/placeholder_album.png"), "Point Left – Previous"),
-            (resource_path("assets/placeholder_album.png"), "Point Up – Volume Up"),
-            (resource_path("assets/placeholder_album.png"), "Point Down – Volume Down"),
-            (resource_path("assets/placeholder_album.png"), "Open Hand – Pause"),
-            (resource_path("assets/placeholder_album.png"), "Closed Fist – Play"),
-            (resource_path("assets/placeholder_album.png"), "Thumbs Up – Like"),
-            (resource_path("assets/placeholder_album.png"), "Peace Sign – Stop Gesture Detection")
+            (resource_path("assets/pointleft.png"), "Point Left – Previous"),
+            (resource_path("assets/pointup.png"), "Point Up – Volume Up"),
+            (resource_path("assets/pointdown.png"), "Point Down – Volume Down"),
+            (resource_path("assets/openhand.png"), "Open Hand – Pause"),
+            (resource_path("assets/closedfist.png"), "Closed Fist – Play"),
+            (resource_path("assets/thumbsup.png"), "Thumbs Up – Like"),
+            (resource_path("assets/peacesign.png"), "Peace Sign – Stop Gesture Detection")
         ]
 
-        # First row — place in columns 1, 2, 3 (leave column 0 empty)
+        # First row — place in columns 0, 1, 2, 3 
         for i in range(4):
-            img = ctk.CTkImage(light_image=Image.open(gesture_data[i][0]).resize((250, 150)), size=(250, 150)) #Good ratio, but decrease size
+            if (i==0 or i==1):
+                img = ctk.CTkImage(light_image=Image.open(gesture_data[i][0]).resize((175, 100)), size=(175, 100)) #Good ratio, but decrease size
+            else:
+                img = ctk.CTkImage(light_image=Image.open(gesture_data[i][0]).resize((100, 130)), size=(100, 130)) #Good ratio, but decrease size
             img_label = ctk.CTkLabel(content_frame, image=img, text="")
             img_label.image = img
             img_label.grid(row=0, column=i, padx=70, pady=(20, 8))
 
             caption = ctk.CTkLabel(content_frame, text=gesture_data[i][1], text_color="white", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"))
-            caption.grid(row=1, column=i, pady=(0,20))
+            caption.grid(row=1, column=i, pady=(0,30))
 
-        # Second row — use all 4 columns starting from column 0
+        # Second row — use all 4 columns 
         for i in range(4):
-            img = ctk.CTkImage(light_image=Image.open(gesture_data[i+4][0]).resize((150, 150)), size=(150, 150))
+            if(i+4==4):
+                img = ctk.CTkImage(light_image=Image.open(gesture_data[i+4][0]).resize((100, 100)), size=(100, 100))
+            elif(i+4==5):
+                img = ctk.CTkImage(light_image=Image.open(gesture_data[i+4][0]).resize((125, 110)), size=(125, 110))
+            else:
+                img = ctk.CTkImage(light_image=Image.open(gesture_data[i+4][0]).resize((150, 150)), size=(150, 150))
             img_label = ctk.CTkLabel(content_frame, image=img, text="")
             img_label.image = img
             img_label.grid(row=2, column=i, padx=70, pady=(30, 8))
@@ -725,8 +729,8 @@ class GesturefyApp:
         # Frame to hold slider, place in alignment with buttons
         self.slider_frame = ctk.CTkFrame(self.settings_content_frame, border_color="#1F1F1F", border_width=4, height=50, width=200, corner_radius=20, fg_color="#343333", bg_color="transparent")
         self.slider_frame.pack(pady=(10,20))
-        
-        self.depth_threshold = 0 
+        self.depth_threshold = 25
+        self.depth_threshold = 0
         self.depth_slider = ctk.CTkSlider(
             self.slider_frame,
             button_color="#1DB954",
@@ -851,13 +855,14 @@ class GesturefyApp:
             self.log_output.delete("1.0", "end")
             self.log_output.configure(state="disabled")
                 
+                        
     def start_gesture_control(self):
         if not self.sp:
             self.log("Please log in to Spotify first.")
             self.start_stop_btn.configure(state="normal")
             return
-
-        self.gesture_thread = GestureControl(self.sp, log_callback=self.log, depth_threshold=self.depth_threshold)
+        
+        self.gesture_thread = GestureControl(self.sp, log_callback=self.log, depth_threshold=self.depth_threshold, stop_callback=self.stop_gesture_control)
         self.gesture_thread.start()
         self.running = True
         self.log("Gesture control started. Press stop to end.")
@@ -867,7 +872,8 @@ class GesturefyApp:
     def stop_gesture_control(self):
         if self.gesture_thread:
             self.gesture_thread.stop()
-            self.gesture_thread.join()
+            if threading.current_thread() != self.gesture_thread:
+                self.gesture_thread.join()
             self.gesture_thread = None
         self.running = False
         self.log("Stopped gesture control. Press start to resume.")
@@ -913,20 +919,11 @@ class GesturefyApp:
 
                         image_bytes = requests.get(album_art_url).content
                         image_pil = Image.open(io.BytesIO(image_bytes)).resize((246, 246), Image.LANCZOS)
-                        
+
                         self.album_art_img = ctk.CTkImage(light_image=image_pil, size=(246, 246))
-                            # only repaint when the album really changed
-                           # … after configuring album_art_label …
                         self.album_art_label.configure(image=self.album_art_img)
-                        self.album_art_label.image = self.album_art_img
-
-                        # only recolor on a new album
-                        if album_art_url != self.current_album_url:
-                            self.current_album_url = album_art_url
-                            self.update_theme_based_on_album(album_art_url)
-
-
-                        self.update_theme_based_on_album(album_art_url) #Stalling progress bar - commented out for now
+                        self.album_art_label.image = self.album_art_img  # prevent garbage collection
+                        self.update_theme_based_on_album(album_art_url) 
                         
 
                         queue = self.sp.queue()
@@ -952,10 +949,10 @@ class GesturefyApp:
                         self.artist_label.configure(text="Play track in Spotify (make sure it's open)")
                         self.progress_bar.set(0)
                         self.track_time_label.configure(text="0:00 / 0:00")
-                        self.sidebar.configure(fg_color="#191414")
-                        self.topbar.configure(fg_color="#191414")
-                        self.center_frame.configure(fg_color="#191414")       # <-- main area
-                        self.log_output.configure(fg_color="#2c2c2c")
+                        #self.sidebar.configure(fg_color="#191414")
+                        #self.topbar.configure(fg_color="#191414")
+                        #self.center_frame.configure(fg_color="#191414")       # <-- main area
+                        #self.log_output.configure(fg_color="#2c2c2c")
 
                         if os.path.exists(placeholder_path):
                             placeholder_img = Image.open(placeholder_path).resize((246, 246), Image.LANCZOS)
@@ -990,31 +987,6 @@ class GesturefyApp:
         
         dominant_rgb = get_dominant_color_from_url(album_art_url)
         mild_rgb = mild_tint_from_rgb(dominant_rgb)
-        mode = ctk.get_appearance_mode()   # returns "Light" or "Dark"
-        if mode == "Light":
-            sat_scale   = 0.3
-            light_scale = 0.4
-            self.start_stop_btn.configure(fg_color = "#7f7f7f")
-            self.log_output.configure(fg_color = "#7f7f7f", border_color="#7f7f7f")
-            self.subtitle.configure(text_color="#343333")
-            base = (240,240,240)
-            
-
-        else:
-            sat_scale   = 0.1
-            light_scale = 0.05
-            base = (25,25,25)
-            self.start_stop_btn.configure(fg_color = "#343333")
-            self.log_output.configure(fg_color = "#343333", border_color="#343333")
-            self.subtitle.configure(text_color="#7f7f7f")
-
-        # usage in main.py, after fetching dominant_color:
-        dom = get_dominant_color_from_url(album_art_url)     # e.g. (200,50,30)
-        subtle = blend_tint(dom, base, alpha=0.1)
-        self.root.configure(fg_color=subtle)
-
-
-        mild_rgb = mild_tint_from_rgb(dominant_rgb, sat_scale, light_scale)
         hex_color = rgb_to_hex(mild_rgb)
         # TODO: Update your app UI colors with hex_color here
         self.main_screen.configure(fg_color=hex_color) # Just change main screen, looks best
