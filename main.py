@@ -987,13 +987,28 @@ class GesturefyApp:
         
         dominant_rgb = get_dominant_color_from_url(album_art_url)
         mild_rgb = mild_tint_from_rgb(dominant_rgb)
-        hex_color = rgb_to_hex(mild_rgb)
-        # TODO: Update your app UI colors with hex_color here
-        self.main_screen.configure(fg_color=hex_color) # Just change main screen, looks best
-        self.sidebar.configure(fg_color=hex_color)
-        self.topbar.configure(fg_color=hex_color)
-        self.center_frame.configure(fg_color=hex_color)       # <-- main area
-        self.now_playing_frame.configure(fg_color=hex_color)
+        mode = ctk.get_appearance_mode()   # returns "Light" or "Dark"
+        if mode == "Light":
+            sat_scale   = 0.3
+            light_scale = 0.4
+            self.start_stop_btn.configure(fg_color = "#7f7f7f")
+            self.log_output.configure(fg_color = "#7f7f7f", border_color="#7f7f7f")
+            self.subtitle.configure(text_color="#343333")
+            base = (240,240,240)
+            
+
+        else:
+            sat_scale   = 0.1
+            light_scale = 0.05
+            base = (25,25,25)
+            self.start_stop_btn.configure(fg_color = "#343333")
+            self.log_output.configure(fg_color = "#343333", border_color="#343333")
+            self.subtitle.configure(text_color="#7f7f7f")
+
+        # usage in main.py, after fetching dominant_color:
+        dom = get_dominant_color_from_url(album_art_url)     # e.g. (200,50,30)
+        subtle = blend_tint(dom, base, alpha=0.1)
+        self.root.configure(fg_color=subtle)
     
     def on_theme_switch(self):
         # CTkSwitch.get() is True when “on,” False when “off”
@@ -1002,6 +1017,8 @@ class GesturefyApp:
         ctk.set_appearance_mode(new_mode)
         # Update the switch’s label so it always shows the *other* mode
         self.theme_switch.configure(text=f"{new_mode} Mode")
+        if hasattr(self, "current_album_url") and self.current_album_url:
+            self.update_theme_based_on_album(self.current_album_url)
     
 # On run, create the app and start the main loop
 if __name__ == "__main__":
