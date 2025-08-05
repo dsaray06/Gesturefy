@@ -16,16 +16,16 @@ import requests
 import time
 import sys
 import uuid
-
 import subprocess
 from colorthief import ColorThief
 from spotifyhelpers import get_current_album_art_url, get_dominant_color_from_url, rgb_to_hex, mild_tint_from_rgb,blend_tint
-import customtkinter as ctk
+
 ctk.set_appearance_mode("Dark") 
 ctk.set_default_color_theme("blue") 
 
 TOKEN_PATH = 'tokens.json'
 BACKEND_URL = "https://gesturefy-auth-backend-1f562dbd4c73.herokuapp.com"
+FIRST_LAUNCH_FLAG = 'first_launch.txt'
 
 def save_tokens(token_info):
     with open(TOKEN_PATH, 'w') as f:
@@ -183,6 +183,7 @@ def resource_path(relative_path):
 class GesturefyApp:
     def __init__(self, root):
         self.root = root
+        self.is_first_launch = not os.path.exists(FIRST_LAUNCH_FLAG)
         self.root.title("Gesturefy")
         self.root.withdraw()
         self.recognizer = GestureRecognizer()
@@ -214,7 +215,8 @@ class GesturefyApp:
         self.sp = None
         self.gesture_thread = None     
             
-            
+        
+        
     # Make login screen
         self.login_screen = ctk.CTkFrame(root, fg_color="#212121")
         self.login_screen.pack(fill="both", expand=True)
@@ -449,15 +451,25 @@ class GesturefyApp:
         )
         self.next_artist_label.pack(anchor="w")
         
+        if self.is_first_launch:
+            with open(FIRST_LAUNCH_FLAG, 'w') as f:
+                f.write('shown')
+            self.open_instructions()
+        
         # Logs in if initially displaying main_screen
         if not login:
             self.spotify_login()
 
     def open_instructions(self):
-        self.settings_screen.pack_forget()
+        if hasattr(self, "settings_screen"):
+            self.settings_screen.pack_forget()
+        if hasattr(self, "login_screen"):
+            self.login_screen.pack_forget()
+        if hasattr(self, "main_screen"):
+            self.main_screen.pack_forget()
         self.instructions_screen = ctk.CTkFrame(self.root, fg_color = "#212121")
         self.instructions_screen.pack(fill="both", expand=True)
-        self.instruction_page_index = 0
+        self.instruction_page_index = 0 if self.is_first_launch else 1
         self.instruction_pages = []  # clear old pages
 
         # Welcome Page
@@ -471,7 +483,8 @@ class GesturefyApp:
         # Center container
         content_frame = ctk.CTkFrame(page2, fg_color="transparent")
         content_frame.pack(expand=True)  # This centers vertically
-
+        label = ctk.CTkLabel(page2, text="Our supported gestures:", font = ctk.CTkFont(family="Montserrat", size=20, weight="bold"), text_color="white")
+        label.place(relx=0.5, rely=0.1, anchor="center")
         gesture_data = [
             (resource_path("assets/pointright.png"), "Point Right – Skip"),
             (resource_path("assets/pointleft.png"), "Point Left – Previous"),
@@ -518,17 +531,17 @@ class GesturefyApp:
         page3 = ctk.CTkFrame(self.instructions_screen, fg_color="#212121")
         depth_img = ctk.CTkImage(light_image=Image.open(resource_path("assets/slider_picture.png")).resize((400,150)), size=(400,150))
         depth_img_label = ctk.CTkLabel(page3, image=depth_img, text="")
-        depth_img_label.place(relx=0.5, rely=0.32, anchor="center")
+        depth_img_label.place(relx=0.51, rely=0.32, anchor="center")
         depth_caption = ctk.CTkLabel(page3, 
                                      text="""
-                                     Depth perception slider - use to change the distance you make gestures from. 
-                                     The default (25) is average range. 
-                                     The closer it gets to 50, the closer your hand must be to the webcam. 
-                                     The closer it gets to 1, the further away you can be.""", 
+                                     Is your hand being detected when you don't want it to?
+                                     Try increasing the depth threshold! 
+                                     The greater the slider's value is, the closer your hand must be to the webcam!
+                                     It's set to zero by default, only increase if you want closer gesture recognition""", 
                                      text_color="white", 
                                      font=ctk.CTkFont(family="Montserrat", size=20, weight="bold")
                                      )
-        depth_caption.place(relx=0.45, rely=0.5, anchor="center")
+        depth_caption.place(relx=0.43, rely=0.5, anchor="center")
 
         self.instruction_pages = [page1, page2, page3]
 
@@ -548,7 +561,7 @@ class GesturefyApp:
         self.next_button.place(relx=0.97, rely=0.03, anchor='ne')  # Top right
 
         # Show first page
-        self.show_instruction_page(0)
+        self.show_instruction_page(0 if self.is_first_launch else 1)
 
     def show_instruction_page(self, index):
         for i, page in enumerate(self.instruction_pages):
@@ -557,7 +570,8 @@ class GesturefyApp:
 
         # Update button on last page
         if index == len(self.instruction_pages) - 1:
-            self.next_button.configure(text="Back to Gesturefy", command=self.enter_main_app)
+            btn_text = "Start Using Gesturefy!" if self.is_first_launch else "Back to Gesturefy"
+            self.next_button.configure(text=btn_text, command=self.enter_main_app)
         else:
             self.next_button.configure(text="Next", command=self.next_instruction_page)
         
@@ -568,7 +582,10 @@ class GesturefyApp:
     
     def enter_main_app(self):
         self.instructions_screen.pack_forget()
-        self.settings_screen.pack(fill='both', expand=True)
+        if hasattr(self, "settings_screen"):
+            self.settings_screen.pack(fill='both', expand=True)
+        else:
+            self.login_screen.pack(fill="both", expand=True)
 
     def update_depth_threshold(self, val):
         val = float(val)
@@ -855,8 +872,7 @@ class GesturefyApp:
                 os.remove(TOKEN_PATH)
             self.log_output.configure(state="normal")
             self.log_output.delete("1.0", "end")
-            self.log_output.configure(state="disabled")
-                
+            self.log_output.configure(state="disabled")          
                         
     def start_gesture_control(self):
         if not self.sp:
