@@ -1,5 +1,6 @@
 # main.py
 import customtkinter as ctk
+from customtkinter import ThemeManager
 from pathlib import Path
 import threading
 import webbrowser
@@ -21,7 +22,7 @@ from colorthief import ColorThief
 from spotifyhelpers import get_current_album_art_url, get_dominant_color_from_url, rgb_to_hex, mild_tint_from_rgb,blend_tint
 import customtkinter as ctk
 ctk.set_appearance_mode("Dark") 
-ctk.set_default_color_theme("green")  
+ctk.set_default_color_theme("blue") 
 
 TOKEN_PATH = 'tokens.json'
 BACKEND_URL = "https://gesturefy-auth-backend-1f562dbd4c73.herokuapp.com"
@@ -767,12 +768,13 @@ class GesturefyApp:
         #Light Mode Switch
         self.theme_switch = ctk.CTkSwitch(
             master=self.settings_content_frame,
-            text="Light/Dark Mode",
+            text="Theme Switch",
             font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"),
             fg_color="#343333",
             command=self.on_theme_switch
         )
         self.theme_switch.pack(pady=(10, 20))
+        #self.theme_switch.configure(command=self.on_theme_toggle)
         
         # Switch user button
         self.switch_user_button = ctk.CTkButton(
@@ -988,27 +990,127 @@ class GesturefyApp:
         dominant_rgb = get_dominant_color_from_url(album_art_url)
         mild_rgb = mild_tint_from_rgb(dominant_rgb)
         mode = ctk.get_appearance_mode()   # returns "Light" or "Dark"
+        # convert to hex
+        primary       = rgb_to_hex(dominant_rgb)
+        primary_light = rgb_to_hex(mild_rgb)       # mild_rgb already from mild_tint_from_rgb
+        # for a darker hover/active, tweak brightness again:
+        primary_dark  = blend_tint(dominant_rgb, (0,0,0), alpha=0.3) 
+        for panel_name in ("tobar", "sidebar","log_output","center_frame"):
+            panel = getattr(self, panel_name, None)
+            if panel:
+                panel.configure(border_color=primary, border_width=2)
+
+        # highlight the log textbox border
+        #if hasattr(self, "log_output"):
+         #   self.log_output.configure(border_color=primary, border_width=2)
+
+        try:
+         # Buttons
+            for btn in (
+                #self.login_button,
+                self.start_stop_btn,
+                #self.next_button,
+                #self.back_button,
+                #self.help_button,
+                #self.settings_button,
+                #self.switch_user_button,
+                #self.logout_button,
+            ):
+                btn.configure(
+                    fg_color=primary,
+                    hover_color=primary_light,
+                    border_color=primary_dark
+                )
+
+            # Progress bar
+            #self.progress_bar.configure(progress_color=primary)
+
+            # (add any other CTkSlider / CTkProgressBar / CTkSwitch etc. here)
+
+        except Exception as e:
+            self.log(f"Error re-coloring widgets: {e}")
+
         if mode == "Light":
-            sat_scale   = 0.3
-            light_scale = 0.4
-            self.start_stop_btn.configure(fg_color = "#7f7f7f")
-            self.log_output.configure(fg_color = "#7f7f7f", border_color="#7f7f7f")
-            self.subtitle.configure(text_color="#343333")
-            base = (240,240,240)
-            
+            # ─── UNIFORM LIGHT-GRAY BACKGROUNDS ───
+            bg_gray    = "#EEEEEE"
+            panel_gray = "#DDDDDD"
+            text_dark  = "#222222"
 
+            # root + main containers
+            self.root.configure(fg_color=bg_gray)
+            self.main_screen.configure(fg_color=panel_gray)
+            self.sidebar.configure(fg_color=panel_gray)
+            self.topbar.configure(fg_color=panel_gray)
+            self.center_frame.configure(fg_color=panel_gray)
+
+            # labels
+            self.title_label.configure(text_color=text_dark)
+            self.subtitle.configure(text_color=text_dark)
+
+            # log box
+            self.log_output.configure(
+                fg_color=bg_gray,
+                border_color=primary,
+                border_width=2,
+                text_color=text_dark
+            )
+
+            # buttons
+            btn_cfg = dict(
+                fg_color=panel_gray,
+                hover_color=bg_gray,
+                border_color=primary,
+                border_width=2,
+                text_color=text_dark
+            )
+            for name in (
+                "login_button", "start_stop_btn", "back_button",
+                "settings_button", "help_button",
+                "switch_user_button", "logout_button"
+            ):
+                w = getattr(self, name, None)
+                if w:
+                    w.configure(**btn_cfg)
+
+            # slider & progress bar accents
+            if hasattr(self, "progress_bar"):
+                self.progress_bar.configure(
+                    progress_color=primary,
+                    fg_color=panel_gray
+                )
+            if hasattr(self, "depth_slider"):
+                self.depth_slider.configure(
+                    button_color=primary,
+                    button_hover_color=primary_light,
+                    progress_color=primary
+                )
         else:
-            sat_scale   = 0.1
-            light_scale = 0.05
-            base = (25,25,25)
-            self.start_stop_btn.configure(fg_color = "#343333")
-            self.log_output.configure(fg_color = "#343333", border_color="#343333")
-            self.subtitle.configure(text_color="#7f7f7f")
-
+            # backgrounds
+            self.root.configure(fg_color="#1F1F1F")
+            self.main_screen.configure(fg_color="#212121")
+            self.sidebar.configure(fg_color="#191414")
+            self.topbar.configure(fg_color="#191414")
+            self.center_frame.configure(fg_color="#191414")
+            # main button
+            self.start_stop_btn.configure(
+                fg_color="#343333",
+                hover_color="#4C4C4C",
+                border_color="#555555",
+                text_color="#FFFFFF"
+            )
+            # log box
+            self.log_output.configure(
+                fg_color="#343333",
+                border_color="#343333",
+                text_color="#D0D0D0"
+            )
+            # labels
+            self.subtitle.configure(text_color="#7F7F7F")
+            self.title_label.configure(text_color="#FFFFFF")
         # usage in main.py, after fetching dominant_color:
         dom = get_dominant_color_from_url(album_art_url)     # e.g. (200,50,30)
-        subtle = blend_tint(dom, base, alpha=0.1)
-        self.root.configure(fg_color=subtle)
+       ## subtle = blend_tint(dom, base, alpha=0.1)
+       ## self.root.configure(fg_color=subtle)  changes whole screen color
     
     def on_theme_switch(self):
         # CTkSwitch.get() is True when “on,” False when “off”
