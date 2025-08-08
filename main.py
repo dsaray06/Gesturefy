@@ -8,7 +8,7 @@ import webbrowser
 import json
 import os
 import spotipy
-from spotify_integration import GestureControl
+from spotify_integration import GestureDetector, set_volume
 from hand_gesture_detection import GestureRecognizer
 from PIL import Image, ImageDraw, ImageTk
 import io
@@ -18,8 +18,12 @@ import time
 import sys
 import uuid
 import subprocess
+import cv2
+import numpy as np
 from colorthief import ColorThief
 from spotifyhelpers import get_current_album_art_url, get_dominant_color_from_url, rgb_to_hex, mild_tint_from_rgb,blend_tint
+from spotipy.exceptions import SpotifyException
+import time
 
 ctk.set_appearance_mode("Dark") 
 ctk.set_default_color_theme("blue") 
@@ -27,6 +31,21 @@ ctk.set_default_color_theme("blue")
 TOKEN_PATH = 'tokens.json'
 BACKEND_URL = "https://gesturefy-auth-backend-1f562dbd4c73.herokuapp.com"
 FIRST_LAUNCH_FLAG = 'first_launch.txt'
+
+clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+def preprocess(frame):
+    # CLAHE on L channel
+    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+    l, a, b = cv2.split(lab)
+    l_eq = clahe.apply(l)
+    lab_eq = cv2.merge((l_eq, a, b))
+    frame_eq = cv2.cvtColor(lab_eq, cv2.COLOR_LAB2BGR)
+    # Auto gamma & contrast
+    invGamma = 1.0 / 1.3
+    table = (np.arange(256) / 255.0) ** invGamma * 255
+    table = np.uint8(table)
+    frame_gc = cv2.LUT(frame_eq, table)
+    return frame_gc
 
 def save_tokens(token_info):
     with open(TOKEN_PATH, 'w') as f:
@@ -878,27 +897,126 @@ class GesturefyApp:
             self.log_output.configure(state="disabled")          
                         
     def start_gesture_control(self):
+        # if not self.sp:
+        #     self.log("Please log in to Spotify first.")
+        #     self.start_stop_btn.configure(state="normal")
+        #     return
+        
+        # #self.gesture_thread = GestureControl(self.sp, log_callback=self.log, depth_threshold=self.depth_threshold, stop_callback=self.stop_gesture_control)
+        # detector = GestureDetector()
+        # #self.gesture_thread.start()
+        # self.running = True
+        # self.log("Gesture control started. Press stop to end.")
+        # self.log("Scanning for gestures...")
+        # self.start_stop_btn.configure(text="Stop", state="normal")
+            # 1) Verify Spotify client
         if not self.sp:
             self.log("Please log in to Spotify first.")
             self.start_stop_btn.configure(state="normal")
             return
-        
-        self.gesture_thread = GestureControl(self.sp, log_callback=self.log, depth_threshold=self.depth_threshold, stop_callback=self.stop_gesture_control)
-        self.gesture_thread.start()
+
+        # 2) Instantiate detector
+        detector = GestureRecognizer()
+
+        # 3) Define camera loop
+        def gesture_loop():
+            cap = cv2.VideoCapture(0)
+            while self.running:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                # Preprocess for lighting
+                frame = preprocess(frame)
+                
+                # Extract and smooth features
+                feats = detector.process_frame(frame)
+                # Classify gesture
+                gesture = detector.classify(feats) if feats else None
+
+                 #skip if still in cooldown
+                if gesture and time.time() - detector.last_action_time < detector.cooldown:
+                    continue
+                # Map to Spotify actions
+                if gesture == 'no_gesture':
+                    continue
+                elif gesture == 'open_fist':
+                    #self.sp.pause_playback()
+                    self.safe_pause_playback()
+                    self.log("Open Hand - Stopped Playback")
+                    detector.last_action_time = time.time()
+                elif gesture == 'closed_fist':
+                    self.safe_start_playback()
+                    #self.sp.start_playback()
+                    self.log("Closed Fist - Resume Playback")
+                    detector.last_action_time = time.time()
+                elif gesture == 'pointing_right':
+                    device_id = self.get_active_device_id()
+                    if device_id: self.sp.next_track(device_id=device_id)
+                    #self.sp.next_track()
+                    self.log("Point Right - Skipped Song")
+                    detector.last_action_time = time.time()
+                elif gesture == 'pointing_left':
+                    device_id = self.get_active_device_id()
+                    if device_id: self.sp.previous_track(device_id=device_id)
+                    #self.sp.previous_track()
+                    self.log("Point Left - Previous Song")
+                    detector.last_action_time = time.time()
+                elif gesture == 'peace_sign':
+                    self.log("Peace Sign - End Gesture Detection")
+                    self.running = False      # signal loop to en
+                    break 
+                elif gesture == 'thumbs_up':
+                    current_playback = self.sp.current_playback()
+                    if current_playback and current_playback['item']:
+                        track_id = current_playback['item']['id']
+                        self.sp.current_user_saved_tracks_add([track_id])
+                        self.log("Thumbs Up - Liked Song")
+                        detector.last_action_time = time.time()
+                elif gesture == 'pointing_up':
+                    set_volume(10)
+                    self.log("Point Up - Increase Volume")
+                    detector.last_action_time = time.time()
+                elif gesture == 'pointing_down':
+                    set_volume(-10)
+                    self.log("Point Down - Decrease Volume")
+                    detector.last_action_time = time.time()
+                
+                if gesture:
+                    self.log(f"Detected: {gesture}")
+                # add other gesture-action mappings as desired
+            cap.release()
+            cv2.destroyAllWindows()
+            # ensure UI updates happen on Tk main thread
+            self.root.after(0, self.on_gesture_loop_stopped)
+
+        # 4) Start thread
         self.running = True
+        self.gesture_thread = threading.Thread(target=gesture_loop, daemon=True)
+        self.gesture_thread.start()
         self.log("Gesture control started. Press stop to end.")
-        self.log("Scanning for gestures...")
         self.start_stop_btn.configure(text="Stop", state="normal")
+    
+    def on_gesture_loop_stopped(self):
+        """Main-thread UI cleanup after gesture loop ends."""
+        self.gesture_thread = None
+        self.running = False
+        self.start_stop_btn.configure(text="Start", state="normal")
+        self.log("Stopped gesture control. Press start to resume.")
+
 
     def stop_gesture_control(self):
-        if self.gesture_thread:
-            self.gesture_thread.stop()
-            if threading.current_thread() != self.gesture_thread:
-                self.gesture_thread.join()
-            self.gesture_thread = None
+        # Tell the loop to exit
+        self.running = False
+
+        # If we're stopping from the UI thread, wait for the worker to finish
+        if self.gesture_thread and threading.current_thread() != self.gesture_thread:
+            self.gesture_thread.join(timeout=1.0)
+
+        self.gesture_thread = None
         self.running = False
         self.log("Stopped gesture control. Press start to resume.")
         self.start_stop_btn.configure(text="Start")
+        self.on_gesture_loop_stopped()
     
     def start_updating_track_info(self):
         def update_loop():
@@ -1022,7 +1140,7 @@ class GesturefyApp:
 
             # a) window & panels
             self.root.configure(fg_color=bg_gray)
-            self.main_screen.configure(fg_color=panel_gray)
+            self.main_screen.configure(fg_color=bg_gray)
             self.sidebar.configure(fg_color=panel_gray)
             self.topbar.configure(fg_color=panel_gray)
             self.center_frame.configure(fg_color=panel_gray)
@@ -1035,8 +1153,8 @@ class GesturefyApp:
 
             # c) buttons base look (no accent override here!)
             btn_base = dict(
-                fg_color=panel_gray,
-                hover_color=bg_gray,
+                fg_color=bg_gray,
+                hover_color=panel_gray,
                 text_color=txt_dark,
             )
             self.start_stop_btn.configure(**btn_base)
@@ -1047,16 +1165,17 @@ class GesturefyApp:
             dark_bg    = "#1F1F1F"
             panel_bg   = "#191414"
             txt_light  = "#D0D0D0"
+            gray_color = "#2c2c2c"
 
-            self.root         .configure(fg_color=dark_bg)
-            self.main_screen  .configure(fg_color=panel_bg)
+            self.root         .configure(fg_color=gray_color)
+            self.main_screen  .configure(fg_color=dark_bg)
             self.sidebar      .configure(fg_color=panel_bg)
-            self.topbar       .configure(fg_color=panel_bg)
+            self.topbar       .configure(fg_color=gray_color)
             self.center_frame .configure(fg_color=panel_bg)
 
             self.title_label .configure(text_color="#FFFFFF")
             self.subtitle    .configure(text_color="#7F7F7F")
-            self.log_output  .configure(fg_color=panel_bg,
+            self.log_output  .configure(fg_color=gray_color,
                                         text_color=txt_light
                                         )
 
@@ -1109,6 +1228,88 @@ class GesturefyApp:
         #    (make sure you saved the last URL in self.current_album_art_url)
         if hasattr(self, "current_album_art_url"):
             self.update_theme_based_on_album(self.current_album_art_url)
+
+   
+
+    def get_active_device_id(self):
+        """Return active device id, else any available device id."""
+        try:
+            pb = self.sp.current_playback()
+            if pb and pb.get("device") and pb["device"].get("id"):
+                return pb["device"]["id"]
+            devs = (self.sp.devices() or {}).get("devices", [])
+            if not devs:
+                return None
+            # prefer active device if present
+            for d in devs:
+                if d.get("is_active"):
+                    return d.get("id")
+            return devs[0].get("id")
+        except Exception as e:
+            self.log(f"Device lookup error: {e}")
+            return None
+
+    def ensure_active_device(self):
+        """Make sure a device is active and ready for control; return device_id or None."""
+        device_id = self.get_active_device_id()
+        if not device_id:
+            self.log("No Spotify devices found. Open Spotify on your phone/desktop and press Play once.")
+            return None
+        try:
+            # wakes device if needed
+            self.sp.transfer_playback(device_id=device_id, force_play=False)
+            time.sleep(0.3)
+        except Exception as e:
+            self.log(f"transfer_playback warning: {e}")
+        return device_id
+
+    def safe_start_playback(self):
+        """Start/resume playback robustly, handling 403s and no-active-device cases."""
+        device_id = self.ensure_active_device()
+        if not device_id:
+            return
+        try:
+            self.sp.start_playback(device_id=device_id)
+            self.log("▶️ Started playback")
+        except SpotifyException as e:
+            if e.http_status == 403:
+                # Often means device not fully active yet, or no context
+                self.log("Got 403 on start_playback. Nudging device and retrying…")
+                try:
+                    self.sp.transfer_playback(device_id=device_id, force_play=True)
+                    time.sleep(0.5)
+                    # Retry start; if user has no recent context, fallback to next_track
+                    try:
+                        self.sp.start_playback(device_id=device_id)
+                    except SpotifyException:
+                        self.sp.next_track(device_id=device_id)
+                        self.sp.start_playback(device_id=device_id)
+                    self.log("▶️ Playback resumed after retry")
+                except Exception as inner:
+                    self.log(f"Start retry failed: {inner}. "
+                            "Open Spotify on the target device and tap Play once, then try again.")
+            else:
+                self.log(f"start_playback error: {e}")
+        except Exception as e:
+            self.log(f"start_playback error: {e}")
+
+    def safe_pause_playback(self):
+        """Pause playback; ignore errors if nothing is playing."""
+        try:
+            device_id = self.get_active_device_id()
+            if device_id:
+                self.sp.pause_playback(device_id=device_id)
+                self.log("⏸ Paused")
+            else:
+                self.log("No active device to pause.")
+        except SpotifyException as e:
+            if e.http_status in (403, 404):
+                self.log("Cannot pause (no active device / restriction).")
+            else:
+                self.log(f"pause_playback error: {e}")
+        except Exception as e:
+            self.log(f"pause_playback error: {e}")
+
     
 # On run, create the app and start the main loop
 if __name__ == "__main__":

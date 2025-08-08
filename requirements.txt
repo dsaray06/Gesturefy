@@ -8,3 +8,6 @@ spotipy
 Pillow
 requests
 python-dotenv
+opencv-python
+numpy
+scikit-learn

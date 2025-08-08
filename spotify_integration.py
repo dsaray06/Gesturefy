@@ -29,13 +29,13 @@ def set_volume(volume_change):
         new_volume = max(0, min(100, current_volume + volume_change))
         subprocess.call(["osascript", "-e", f"set volume output volume {new_volume}"])
 
-class GestureControl(threading.Thread):
+class GestureDetector(threading.Thread):
     def __init__(self, sp, log_callback=None, depth_threshold = 0.0, stop_callback=None):
         super().__init__()
         self.sp = sp
         self._running = True
         self.log = log_callback or print
-        self.cooldown = 1  # seconds between reset
+        self.cooldown = 2.5  # seconds between reset
         self.last_action_time = 0
         self.stop_callback = stop_callback  # <-- Add this
         # MediaPipe init
@@ -53,7 +53,8 @@ class GestureControl(threading.Thread):
         "pointing_up": 0,
         "pointing_down": 0,
         "pointing_left": 0,
-        "pointing_right": 0
+        "pointing_right": 0,
+        "no_gesture": 0
      }
         self.GESTURE_HOLD_FRAMES = 8
         self.last_triggered = None
@@ -118,43 +119,46 @@ class GestureControl(threading.Thread):
 
         cap.release()
 
-    def handle_gesture_action(self, gesture):
-        try:
-            if gesture == "closed_fist":
-                playback_info = self.sp.current_playback()
-                if not playback_info or not playback_info['is_playing']:
-                    devices = self.sp.devices().get("devices", [])
-                    if devices:
-                        active_device = next((d for d in devices if d.get("is_active")), None)
-                        if not active_device:
-                            self.sp.transfer_playback(device_id=devices[0]["id"], force_play=False)
-                            time.sleep(0.5)
-                        self.sp.start_playback()
-                        self.log("Closed Fist - Playing Song")
-            elif gesture == "open_fist":
-                playback_info = self.sp.current_playback()
-                if playback_info and playback_info['is_playing']:
-                    self.sp.pause_playback()
-                    self.log("Open Fist - Pausing Song")
-            elif gesture == "thumbs_up":
-                current_playback = self.sp.current_playback()
-                if current_playback and current_playback['item']:
-                    track_id = current_playback['item']['id']
-                    self.sp.current_user_saved_tracks_add([track_id])
-                    self.log("Thumbs Up - Liked Song")
-            elif gesture == "pointing_up":
-                self.log("Pointing Up - Increasing Volume")
-                set_volume(10)
-            elif gesture == "pointing_down":
-                self.log("Pointing Down - Decreasing Volume")
-                set_volume(-10)
-            elif gesture == "pointing_right":
-                self.log("Pointing Right - Skipping to Next Track")
-                self.sp.next_track()
-            elif gesture == "pointing_left":
-                self.log("Pointing Left - Replaying Previous Track")
-                self.sp.previous_track()
-        except Exception as e:
-            self.log(f"Error performing action for {gesture}: {e}")
+    # def handle_gesture_action(self, gesture):
+    #     try:
+    #         if gesture == "no_gesture":
+
+    #         elif gesture == "closed_fist":
+    #             playback_info = self.sp.current_playback()
+    #             if not playback_info or not playback_info['is_playing']:
+    #                 devices = self.sp.devices().get("devices", [])
+    #                 if devices:
+    #                     active_device = next((d for d in devices if d.get("is_active")), None)
+    #                     if not active_device:
+    #                         self.sp.transfer_playback(device_id=devices[0]["id"], force_play=False)
+    #                         time.sleep(0.5)
+    #                     self.sp.start_playback()
+    #                     self.log("Closed Fist - Playing Song")
+    #         elif gesture == "open_fist":
+    #             playback_info = self.sp.current_playback()
+    #             if playback_info and playback_info['is_playing']:
+    #                 self.sp.pause_playback()
+    #                 self.log("Open Fist - Pausing Song")
+    #         elif gesture == "thumbs_up":
+    #             current_playback = self.sp.current_playback()
+    #             if current_playback and current_playback['item']:
+    #                 track_id = current_playback['item']['id']
+    #                 self.sp.current_user_saved_tracks_add([track_id])
+    #                 self.log("Thumbs Up - Liked Song")
+    #         elif gesture == "pointing_up":
+    #             self.log("Pointing Up - Increasing Volume")
+    #             set_volume(10)
+    #         elif gesture == "pointing_down":
+    #             self.log("Pointing Down - Decreasing Volume")
+    #             set_volume(-10)
+    #         elif gesture == "pointing_right":
+    #             self.log("Pointing Right - Skipping to Next Track")
+    #             self.sp.next_track()
+    #         elif gesture == "pointing_left":
+    #             self.log("Pointing Left - Replaying Previous Track")
+    #             self.sp.previous_track()
+            
+    #     except Exception as e:
+    #         self.log(f"Error performing action for {gesture}: {e}")
 
     
