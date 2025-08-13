@@ -920,7 +920,9 @@ class GesturefyApp:
 
         # 3) Define camera loop
         def gesture_loop():
+
             cap = cv2.VideoCapture(0)
+            
             while self.running:
                 ret, frame = cap.read()
                 if not ret:

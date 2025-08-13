@@ -6,12 +6,16 @@ import math
 import pickle
 from mediapipe import solutions as mp_solutions
 from mediapipe.framework.formats import landmark_pb2
+from mediapipe.python.solutions.hands import HandLandmark as HL
 import time
+from collections import deque, Counter
 
 # Initialize MediaPipe hands module
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.8, min_tracking_confidence=0.9)
+
+
 
 class GestureRecognizer:
     def __init__(self, model_path='gesture_model.pkl'):
@@ -34,6 +38,7 @@ class GestureRecognizer:
             print(f"Warning: model file '{model_path}' not found. GestureDetector will work for data collection but classify() will return None.")
         # calibration centroids (optional)
         self.centroids = {}
+        self.pred_hist = deque(maxlen=5)  # require agreement
 
     def smooth_landmarks(self, lm_list):
         if self.prev_landmarks is None:
@@ -74,15 +79,39 @@ class GestureRecognizer:
         return features
 
     def process_frame(self, frame):
-        # run Mediapipe
-        results = self.hands.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-        if not results.multi_hand_landmarks:
-            return None
-        lm = results.multi_hand_landmarks[0].landmark
-        lm = self.smooth_landmarks(lm)
-        feats = self.extract_features(lm)
-        return feats
+        # 1) Run MediaPipe
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = self.hands.process(rgb)
 
+        # 2) Make sure we actually have a hand
+        if not results or not results.multi_hand_landmarks:
+            return None
+
+        # Use the first detected hand
+        lm_list = results.multi_hand_landmarks[0].landmark
+
+        # 3) Handedness + confidence (gate on score instead of 'visibility')
+        handed_label = None
+        handed_score = 1.0
+        if getattr(results, "multi_handedness", None):
+            handed_label = results.multi_handedness[0].classification[0].label  # 'Left' or 'Right'
+            handed_score = results.multi_handedness[0].classification[0].score  # 0..1
+
+        # If confidence is too low, skip this frame
+        if handed_score < 0.7:
+            return None
+
+        # 4) Mirror X for left hand so features match right-hand training
+        if handed_label == 'Left':
+            for p in lm_list:
+                p.x = 1.0 - p.x
+
+        # 5) Smooth landmarks (do it AFTER mirroring)
+        lm_list = self.smooth_landmarks(lm_list)
+
+        # 6) Extract features
+        features = self.extract_features(lm_list)
+        return features
     def classify(self, features):
         # if user calibrated centroids:
         if self.centroids:
@@ -94,6 +123,7 @@ class GestureRecognizer:
                     dmin, label = d, lbl
             return label
         return self.model.predict([features])[0]
+        
 
     def calibrate(self, gesture_name, features_list):
         # call during startup, pass list of feature vectors
