@@ -927,9 +927,33 @@ class GesturefyApp:
                     break
                 # Preprocess for lighting
                 frame = preprocess(frame)
+
                 
                 # Extract and smooth features
                 feats = detector.process_frame(frame)
+
+                lm = getattr(detector, "last_landmarks", None)
+                if lm is None:
+                    continue
+
+                h, w = frame.shape[:2]
+                xs = [p.x * w for p in lm.landmark]
+                ys = [p.y * h for p in lm.landmark]
+                cx = sum(xs) / len(xs) / w  # normalized 0..1
+                cy = sum(ys) / len(ys) / h
+                # Only accept if hand centroid is near the center circle (radius ~0.35)
+                dx, dy = cx - 0.5, cy - 0.5
+                if (dx*dx + dy*dy) > (0.35*0.35):
+                    continue
+                bbox_w = max(xs) - min(xs)
+                bbox_h = max(ys) - min(ys)
+
+                # scale in [0..1], “how big is the hand on screen”
+                hand_scale = max(bbox_w / w, bbox_h / h)
+
+                # Use your slider as a MIN size gate (e.g., 0.10 = hand must fill ≥10% of width/height)
+                if hand_scale < (self.depth_threshold / 100.0):   # if your slider is 0..100
+                    continue  # ignore far/small hands
                 # Classify gesture
                 gesture = detector.classify(feats) if feats else None
 

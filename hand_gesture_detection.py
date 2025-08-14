@@ -25,6 +25,14 @@ def open_camera(index=0, width=1280, height=720, fps=30):
     cap = next((c for c in tries if c.isOpened()), None)
     if cap is None:
         raise RuntimeError("No camera found")
+    
+    # # after cap = ...
+    # cap.set(cv2.CAP_PROP_AUTO_WB, 1)
+    # # Try auto exposure (platform dependent, harmless if ignored)
+    # cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)  # MSMF/DSHOW often treat 0.75 as 'Auto'
+    # # If the image is still silhouetted, try slightly raising exposure/brightness:
+    # cap.set(cv2.CAP_PROP_BRIGHTNESS, 0.55)     # tweak 0.45–0.65
+    # cap.set(cv2.CAP_PROP_EXPOSURE, -5)  
 
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
     cap.set(cv2.CAP_PROP_FRAME_WIDTH,  width)
@@ -40,6 +48,8 @@ class GestureRecognizer:
             max_num_hands=1,
             min_detection_confidence=0.7,
             min_tracking_confidence=0.7)
+
+        self.last_landmarks = None 
         # smoothing buffer
         self.prev_landmarks = None
         self.smooth_alpha = 0.7
@@ -101,10 +111,13 @@ class GestureRecognizer:
         results = self.hands.process(rgb)
 
         # 2) Make sure we actually have a hand
+        self.last_landmarks = None
         if not results or not results.multi_hand_landmarks:
             return None
-
+        
+        
         # Use the first detected hand
+        self.last_landmarks = results.multi_hand_landmarks[0]
         lm_list = results.multi_hand_landmarks[0].landmark
 
         # 3) Handedness + confidence (gate on score instead of 'visibility')
@@ -127,7 +140,7 @@ class GestureRecognizer:
         lm_list = self.smooth_landmarks(lm_list)
 
         # 6) Extract features
-        features = self.extract_features(lm_list)
+        features = self.extract_features(lm_list) if self.last_landmarks else None
         return features
     def classify(self, features):
         # if user calibrated centroids:
