@@ -3,7 +3,7 @@ import cv2
 import mediapipe as mp
 import time
 import platform
-from hand_gesture_detection import GestureRecognizer
+from hand_gesture_detection import GestureRecognizer, open_camera
 import threading
 from io import BytesIO
 
@@ -63,7 +63,7 @@ class GestureDetector(threading.Thread):
         self._running = False
     
     def run(self):
-        cap = cv2.VideoCapture(0)
+        cap = open_camera(0)
         if not cap.isOpened():
             print("Error: Could not open video capture.")
             return

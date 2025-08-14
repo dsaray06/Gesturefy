@@ -15,7 +15,23 @@ mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.8, min_tracking_confidence=0.9)
 
+def open_camera(index=0, width=1280, height=720, fps=30):
+    # Try Windows-friendly backends first, then default
+    tries = []
+    if hasattr(cv2, "CAP_DSHOW"): tries.append(cv2.VideoCapture(index, cv2.CAP_DSHOW))
+    if hasattr(cv2, "CAP_MSMF"):  tries.append(cv2.VideoCapture(index, cv2.CAP_MSMF))
+    tries.append(cv2.VideoCapture(index))  # fallback
 
+    cap = next((c for c in tries if c.isOpened()), None)
+    if cap is None:
+        raise RuntimeError("No camera found")
+
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH,  width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    cap.set(cv2.CAP_PROP_FPS,          fps)
+    return cap
+    
 
 class GestureRecognizer:
     def __init__(self, model_path='gesture_model.pkl'):
@@ -54,6 +70,7 @@ class GestureRecognizer:
             smoothed.append(lm)
         self.prev_landmarks = smoothed
         return smoothed
+
 
     def extract_features(self, lm_list):
         # translate to wrist-origin & scale by palm size

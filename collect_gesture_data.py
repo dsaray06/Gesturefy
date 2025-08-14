@@ -1,11 +1,11 @@
 import csv
 import time
 import cv2
-from hand_gesture_detection import GestureRecognizer
+from hand_gesture_detection import GestureRecognizer, open_camera
 
 # Initialize detector and camera
 detector = GestureRecognizer()
-cap = cv2.VideoCapture(0)
+cap = open_camera(0)
 
 # List of gesture names (matching your training labels)
 gestures = ['open_fist', 'closed_fist', 'thumbs_up','peace_sign','pointing_up','pointing_down','pointing_left','pointing_right','no_gesture']

@@ -9,7 +9,7 @@ import json
 import os
 import spotipy
 from spotify_integration import GestureDetector, set_volume
-from hand_gesture_detection import GestureRecognizer
+from hand_gesture_detection import GestureRecognizer, open_camera 
 from PIL import Image, ImageDraw, ImageTk
 import io
 from io import BytesIO
@@ -920,9 +920,7 @@ class GesturefyApp:
 
         # 3) Define camera loop
         def gesture_loop():
-
-            cap = cv2.VideoCapture(0)
-            
+            cap = open_camera(0)
             while self.running:
                 ret, frame = cap.read()
                 if not ret:
