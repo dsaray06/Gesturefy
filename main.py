@@ -28,9 +28,20 @@ import time
 ctk.set_appearance_mode("Dark") 
 ctk.set_default_color_theme("blue") 
 
-TOKEN_PATH = 'tokens.json'
+
 BACKEND_URL = "https://gesturefy-auth-backend-1f562dbd4c73.herokuapp.com"
-FIRST_LAUNCH_FLAG = 'first_launch.txt'
+
+# Base folder to store user-specific files
+if getattr(sys, 'frozen', False):
+    # Running as a bundled app (PyInstaller)
+    base_dir = os.path.join(os.path.expanduser("~"), "Gesturefy")
+else:
+    # Running as a script
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+
+os.makedirs(base_dir, exist_ok=True)
+FIRST_LAUNCH_FLAG = os.path.join(base_dir, "first_launch.txt")
+TOKEN_PATH = os.path.join(base_dir, "tokens.json")
 
 
 
@@ -458,6 +469,9 @@ class GesturefyApp:
         )
         self.next_artist_label.pack(anchor="w")
         
+       
+
+        # Use the existing first-launch logic
         if self.is_first_launch:
             with open(FIRST_LAUNCH_FLAG, 'w') as f:
                 f.write('shown')

@@ -1,0 +1,10 @@
+Gesturefy End User License Agreement (EULA)
+
+Permission is granted to install and use Gesturefy on your personal computer. You may run the software locally and use all its features.
+
+Restrictions:
+1. You may not modify, reverse-engineer, or decompile Gesturefy.
+2. You may not redistribute Gesturefy or any modified version of it.
+3. You may not claim Gesturefy as your own work.
+
+All other rights are reserved by the authors.
