@@ -8,8 +8,8 @@ import webbrowser
 import json
 import os
 import spotipy
-from spotify_integration import GestureDetector, set_volume
-from hand_gesture_detection import GestureRecognizer, open_camera 
+from spotify_integration_v1 import GestureControl
+from hand_gesture_detection_v1 import GestureRecognizer 
 from PIL import Image, ImageDraw, ImageTk
 import io
 from io import BytesIO
@@ -32,20 +32,7 @@ TOKEN_PATH = 'tokens.json'
 BACKEND_URL = "https://gesturefy-auth-backend-1f562dbd4c73.herokuapp.com"
 FIRST_LAUNCH_FLAG = 'first_launch.txt'
 
-clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-def preprocess(frame):
-    # CLAHE on L channel
-    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-    l, a, b = cv2.split(lab)
-    l_eq = clahe.apply(l)
-    lab_eq = cv2.merge((l_eq, a, b))
-    frame_eq = cv2.cvtColor(lab_eq, cv2.COLOR_LAB2BGR)
-    # Auto gamma & contrast
-    invGamma = 1.0 / 1.3
-    table = (np.arange(256) / 255.0) ** invGamma * 255
-    table = np.uint8(table)
-    frame_gc = cv2.LUT(frame_eq, table)
-    return frame_gc
+
 
 def save_tokens(token_info):
     with open(TOKEN_PATH, 'w') as f:
@@ -210,7 +197,7 @@ class GesturefyApp:
         self.keep_refreshing_token = False
         self.instruction_page_index = 0
         self.instruction_pages = []
-        self.depth_threshold = 25.0
+        self.depth_threshold = 0
         self.slider_touched = False
 
         font_path = resource_path("fonts/Montserrat-Regular.ttf")
@@ -519,9 +506,9 @@ class GesturefyApp:
         # First row — place in columns 0, 1, 2, 3 
         for i in range(4):
             if (i==0 or i==1):
-                img = ctk.CTkImage(light_image=Image.open(gesture_data[i][0]).resize((175, 100)), size=(175, 100)) #Good ratio, but decrease size
+                img = ctk.CTkImage(light_image=Image.open(gesture_data[i][0]).resize((175, 100)), size=(175, 100)) 
             else:
-                img = ctk.CTkImage(light_image=Image.open(gesture_data[i][0]).resize((100, 130)), size=(100, 130)) #Good ratio, but decrease size
+                img = ctk.CTkImage(light_image=Image.open(gesture_data[i][0]).resize((100, 130)), size=(100, 130)) 
             img_label = ctk.CTkLabel(content_frame, image=img, text="")
             img_label.image = img
             img_label.grid(row=0, column=i, padx=70, pady=(20, 8))
@@ -551,17 +538,19 @@ class GesturefyApp:
         page3 = ctk.CTkFrame(self.instructions_screen, fg_color="#212121")
         depth_img = ctk.CTkImage(light_image=Image.open(resource_path("assets/slider_picture.png")).resize((400,150)), size=(400,150))
         depth_img_label = ctk.CTkLabel(page3, image=depth_img, text="")
-        depth_img_label.place(relx=0.51, rely=0.32, anchor="center")
+        depth_img_label.place(relx=0.51, rely=0.3, anchor="center")
         depth_caption = ctk.CTkLabel(page3, 
                                      text="""
                                      Is your hand being detected when you don't want it to?
                                      Try increasing the depth threshold! 
                                      The greater the slider's value is, the closer your hand must be to the webcam!
-                                     It's set to zero by default, only increase if you want closer gesture recognition""", 
+                                     It's set to zero by default, only increase if you want closer gesture recognition.
+                                     If it's at zero and your gestures still aren't being picked up, 
+                                     try moving your hand closer to the camera. It's different for every device.""", 
                                      text_color="white", 
                                      font=ctk.CTkFont(family="Montserrat", size=20, weight="bold")
                                      )
-        depth_caption.place(relx=0.43, rely=0.5, anchor="center")
+        depth_caption.place(relx=0.43, rely=0.52, anchor="center")
 
         self.instruction_pages = [page1, page2, page3]
 
@@ -621,9 +610,9 @@ class GesturefyApp:
         if pivot - band < val < pivot + band:
             msg = "Average Range"
         elif val < pivot - band:
-            msg = "Further (More Recognition)"
+            msg = "Further Detection"
         else:
-            msg = "Closer (Less  Recognition)"
+            msg = "Closer Detection"
 
         # update the UI once (with both text + number)
         if self.slider_touched:
@@ -700,9 +689,9 @@ class GesturefyApp:
             width=32,
             fg_color="transparent",
             bg_color="transparent",
-            hover_color="#191414"
+            hover_color="#2c2c2c"
         )
-        self.settings_button.pack(side="right", padx=(10, 0), pady=10)  # Right-align gear button
+        self.settings_button.pack(side="right", padx=(10, 5), pady=10)  # Right-align gear button
        
 
         # Displays profile picture and username in a profile frame
@@ -719,7 +708,7 @@ class GesturefyApp:
         self.username_label = ctk.CTkLabel(self.profile_frame, text=f"{user['display_name']}", font=ctk.CTkFont(family="Montserrat", size=22, weight="bold"), text_color="#F1F1F1")
         self.username_label.pack(side="left", anchor="center")
         
-        self.profile_frame.pack_configure(padx=(0, 8))
+        self.profile_frame.pack_configure(padx=(5, 8))
 
     def spotify_login(self):
         self.log("Logging in to Spotify...")
@@ -767,8 +756,8 @@ class GesturefyApp:
         # Frame to hold slider, place in alignment with buttons
         self.slider_frame = ctk.CTkFrame(self.settings_content_frame, border_color="#1F1F1F", border_width=4, height=50, width=200, corner_radius=20, fg_color="#343333", bg_color="transparent")
         self.slider_frame.pack(pady=(10,20))
-        self.depth_threshold = 25
-        self.depth_threshold = 0
+        #self.depth_threshold = 25
+        #self.depth_threshold = 0
         self.depth_slider = ctk.CTkSlider(
             self.slider_frame,
             button_color="#1DB954",
@@ -802,6 +791,7 @@ class GesturefyApp:
                                         border_color="#1F1F1F",
                                         border_width=4 )
         self.help_button.pack(pady=(10,20))
+        
         #Light Mode Switch
         initial = ctk.get_appearance_mode()
         self.theme_var = tk.BooleanVar(value=(initial == "Dark"))
@@ -897,136 +887,24 @@ class GesturefyApp:
             self.log_output.configure(state="disabled")          
                         
     def start_gesture_control(self):
-        # if not self.sp:
-        #     self.log("Please log in to Spotify first.")
-        #     self.start_stop_btn.configure(state="normal")
-        #     return
-        
-        # #self.gesture_thread = GestureControl(self.sp, log_callback=self.log, depth_threshold=self.depth_threshold, stop_callback=self.stop_gesture_control)
-        # detector = GestureDetector()
-        # #self.gesture_thread.start()
-        # self.running = True
-        # self.log("Gesture control started. Press stop to end.")
-        # self.log("Scanning for gestures...")
-        # self.start_stop_btn.configure(text="Stop", state="normal")
-            # 1) Verify Spotify client
         if not self.sp:
             self.log("Please log in to Spotify first.")
             self.start_stop_btn.configure(state="normal")
             return
 
-        # 2) Instantiate detector
-        detector = GestureRecognizer()
-
-        # 3) Define camera loop
-        def gesture_loop():
-            cap = open_camera(0)
-            while self.running:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                # Preprocess for lighting
-                frame = preprocess(frame)
-
-                
-                # Extract and smooth features
-                feats = detector.process_frame(frame)
-
-                lm = getattr(detector, "last_landmarks", None)
-                if lm is None:
-                    continue
-
-                h, w = frame.shape[:2]
-                xs = [p.x * w for p in lm.landmark]
-                ys = [p.y * h for p in lm.landmark]
-                cx = sum(xs) / len(xs) / w  # normalized 0..1
-                cy = sum(ys) / len(ys) / h
-                # Only accept if hand centroid is near the center circle (radius ~0.35)
-                dx, dy = cx - 0.5, cy - 0.5
-                if (dx*dx + dy*dy) > (0.35*0.35):
-                    continue
-                bbox_w = max(xs) - min(xs)
-                bbox_h = max(ys) - min(ys)
-
-                # scale in [0..1], “how big is the hand on screen”
-                hand_scale = max(bbox_w / w, bbox_h / h)
-
-                # Use your slider as a MIN size gate (e.g., 0.10 = hand must fill ≥10% of width/height)
-                if hand_scale < (self.depth_threshold / 100.0):   # if your slider is 0..100
-                    continue  # ignore far/small hands
-                # Classify gesture
-                gesture = detector.classify(feats) if feats else None
-
-                 #skip if still in cooldown
-                if gesture and time.time() - detector.last_action_time < detector.cooldown:
-                    continue
-                # Map to Spotify actions
-                if gesture == 'no_gesture':
-                    continue
-                elif gesture == 'open_fist':
-                    #self.sp.pause_playback()
-                    self.safe_pause_playback()
-                    self.log("Open Hand - Stopped Playback")
-                    detector.last_action_time = time.time()
-                elif gesture == 'closed_fist':
-                    self.safe_start_playback()
-                    #self.sp.start_playback()
-                    self.log("Closed Fist - Resume Playback")
-                    detector.last_action_time = time.time()
-                elif gesture == 'pointing_right':
-                    device_id = self.get_active_device_id()
-                    if device_id: self.sp.next_track(device_id=device_id)
-                    #self.sp.next_track()
-                    self.log("Point Right - Skipped Song")
-                    detector.last_action_time = time.time()
-                elif gesture == 'pointing_left':
-                    device_id = self.get_active_device_id()
-                    if device_id: self.sp.previous_track(device_id=device_id)
-                    #self.sp.previous_track()
-                    self.log("Point Left - Previous Song")
-                    detector.last_action_time = time.time()
-                elif gesture == 'peace_sign':
-                    self.log("Peace Sign - End Gesture Detection")
-                    self.running = False      # signal loop to en
-                    break 
-                elif gesture == 'thumbs_up':
-                    current_playback = self.sp.current_playback()
-                    if current_playback and current_playback['item']:
-                        track_id = current_playback['item']['id']
-                        self.sp.current_user_saved_tracks_add([track_id])
-                        self.log("Thumbs Up - Liked Song")
-                        detector.last_action_time = time.time()
-                elif gesture == 'pointing_up':
-                    set_volume(10)
-                    self.log("Point Up - Increase Volume")
-                    detector.last_action_time = time.time()
-                elif gesture == 'pointing_down':
-                    set_volume(-10)
-                    self.log("Point Down - Decrease Volume")
-                    detector.last_action_time = time.time()
-                
-                if gesture:
-                    self.log(f"Detected: {gesture}")
-                # add other gesture-action mappings as desired
-            cap.release()
-            cv2.destroyAllWindows()
-            # ensure UI updates happen on Tk main thread
-            self.root.after(0, self.on_gesture_loop_stopped)
-
-        # 4) Start thread
-        self.running = True
-        self.gesture_thread = threading.Thread(target=gesture_loop, daemon=True)
+        self.gesture_thread = GestureControl(self.sp, log_callback=self.log, depth_threshold=self.depth_threshold, stop_callback=self.stop_gesture_control)
         self.gesture_thread.start()
+        self.running = True
         self.log("Gesture control started. Press stop to end.")
+        self.log("Scanning for gestures...")
         self.start_stop_btn.configure(text="Stop", state="normal")
-    
+
     def on_gesture_loop_stopped(self):
         """Main-thread UI cleanup after gesture loop ends."""
         self.gesture_thread = None
         self.running = False
         self.start_stop_btn.configure(text="Start", state="normal")
         self.log("Stopped gesture control. Press start to resume.")
-
 
     def stop_gesture_control(self):
         # Tell the loop to exit
@@ -1035,11 +913,6 @@ class GesturefyApp:
         # If we're stopping from the UI thread, wait for the worker to finish
         if self.gesture_thread and threading.current_thread() != self.gesture_thread:
             self.gesture_thread.join(timeout=1.0)
-
-        self.gesture_thread = None
-        self.running = False
-        self.log("Stopped gesture control. Press start to resume.")
-        self.start_stop_btn.configure(text="Start")
         self.on_gesture_loop_stopped()
     
     def start_updating_track_info(self):
@@ -1148,15 +1021,15 @@ class GesturefyApp:
             self.log("Spotify client not initialized or no album art URL.")
             return
 
-        # ——— 1) compute your dynamic accent colors ———
+        # 1) compute dynamic accent colors
         dominant_rgb  = get_dominant_color_from_url(album_art_url)
         mild_rgb      = mild_tint_from_rgb(dominant_rgb)
         primary       = rgb_to_hex(dominant_rgb)                       # for borders/hover
         primary_light = rgb_to_hex(mild_rgb)                           # for hover
         primary_dark  = blend_tint(dominant_rgb, (0,0,0), alpha=0.3)   # for borders
-        mode          = ctk.get_appearance_mode()  # "Light" or "Dark"
+        mode          = ctk.get_appearance_mode()  
 
-        # ——— 2) STATIC styling based on mode ———
+        # 2) styling based on mode
         if mode == "Light":
             bg_gray    = "#EEEEEE"
             panel_gray = "#DDDDDD"
@@ -1211,20 +1084,19 @@ class GesturefyApp:
             self.start_stop_btn.configure(**btn_base)
             # … repeat for other buttons …
 
-        # ——— 3) ACCENT styling (always last) ———
+        # 3) ACCENT styling (always last)
         # highlight panel borders
-        for panel_name in ("main_screen", "sidebar", "log_output"):
+        for panel_name in ("main_screen", "sidebar", "log_output", "topbar"):
             widget = getattr(self, panel_name, None)
             if widget:
                 widget.configure(border_color=primary, border_width=2)
 
-        # give your buttons a colored hover & border, but keep fg_color static
+        # give buttons a colored hover & border
         self.start_stop_btn.configure(
             hover_color=primary_light,
             border_color=primary,
             border_width=2
         )
-        # … same for next/back/help buttons if you have them …
 
         # slider & progress accents
         if hasattr(self, "depth_slider"):
@@ -1236,24 +1108,21 @@ class GesturefyApp:
         if hasattr(self, "progress_bar"):
             self.progress_bar.configure(progress_color=primary)
 
-
     def on_theme_switch(self):
-        # 1) flip the CTk appearance mode
-        current = ctk.get_appearance_mode()                  # "Light" or "Dark"
+        current = ctk.get_appearance_mode()                  
         new_mode = "Dark" if current == "Light" else "Light"
         ctk.set_appearance_mode(new_mode)
-
-        # 2) update your toggle-button’s text so it always shows the opposite
+        
         self.theme_switch.configure(
             text=f"Switch to {'Dark' if new_mode=='Light' else 'Light'} Mode"
         )
-
-        # 3) reapply your album-art theming on every widget
-        #    (make sure you saved the last URL in self.current_album_art_url)
+        
         if hasattr(self, "current_album_art_url"):
             self.update_theme_based_on_album(self.current_album_art_url)
 
    
+   
+# Use these for v2
 
     def get_active_device_id(self):
         """Return active device id, else any available device id."""
