@@ -36,7 +36,7 @@ jobs:
 
       # Step 5: Upload DMG as artifact
       - name: Upload DMG
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Gesturefy_mac
           path: dist/dmg/Gesturefy_mac.dmg
