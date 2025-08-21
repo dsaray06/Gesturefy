@@ -27,14 +27,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller
 
-      # Step 4: Build app with PyInstaller
-      - name: Build Gesturefy DMG
+      # Step 4: Build .app bundle with PyInstaller
+      - name: Build Gesturefy app
         run: |
           pyinstaller --noconfirm --windowed --name Gesturefy main.py
-          mkdir -p dist/dmg
-          hdiutil create -volname "Gesturefy" -srcfolder dist/Gesturefy.app -ov -format UDZO dist/dmg/Gesturefy_mac.dmg
 
-      # Step 5: Upload DMG as artifact
+      # Step 5: Create DMG with Applications link
+      - name: Create DMG
+        run: |
+          mkdir -p dist/dmg
+          mkdir -p dist/tmp_dmg
+          cp -R "dist/Gesturefy.app" dist/tmp_dmg/
+          ln -s /Applications dist/tmp_dmg/Applications
+          hdiutil create -volname "Gesturefy" \
+            -srcfolder dist/tmp_dmg \
+            -ov -format UDZO dist/dmg/Gesturefy_mac.dmg
+
+      # Step 6: Upload DMG as artifact
       - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:
