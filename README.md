@@ -22,7 +22,6 @@
 - **OpenCV** (computer vision for gesture detection)  
 - **Spotipy** (Spotify API integration)  
 - **React & Node.js** (website for downloads)  
-- **TensorFlow.js** (optional for gesture detection improvements)  
 
 ---
 
